@@ -1,6 +1,6 @@
 
 
-def create_folder(name: str) -> str:
+def createFolder(name: str) -> str:
     """Create a new folder with the given name.
 
     Args:
@@ -10,7 +10,7 @@ def create_folder(name: str) -> str:
     return f"(not implemented yet) would create folder '{name}'"
 
 
-def create_file(name: str, content: str = "") -> str:
+def createFile(name: str, content: str = "") -> str:
     """Create a new file with the given name and optional text content.
 
     Args:
@@ -21,7 +21,7 @@ def create_file(name: str, content: str = "") -> str:
     return f"(not implemented yet) would create file '{name}'"
 
 
-def read_file(name: str) -> str:
+def readFile(name: str) -> str:
     """Read and return the contents of a file.
 
     Args:

@@ -1,22 +1,21 @@
-
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from agent.nova import create_nova, ask_nova 
+from agent.nova import createNova, askNova
 
 
 def main():
     print("NOVA (terminal mode). Type 'quit' to exit.\n")
-    chat = create_nova()
+    chat = createNova()
     while True:
-        user_text = input("You: ").strip()
-        if user_text.lower() == "quit":
+        userText = input("You: ").strip()
+        if userText.lower() == "quit":
             break
-        if not user_text:
+        if not userText:
             continue
-        print("NOVA:", ask_nova(chat, user_text))
+        print("NOVA:", askNova(chat, userText))
 
 
 if __name__ == "__main__":
