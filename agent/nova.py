@@ -12,14 +12,14 @@ import time
 from openai import OpenAI
 import openai
  
-from tools.toolSchema import function_to_tool_schema
+from tools.toolSchema import functionToToolSchema
 from tools.webSearch import searchWeb, searchYoutube
 #from tools.files import create_folder, create_file, read_file #PLACEHOLDER
 #from tools.weather import get_weather #PLACEHOLDER
 from agent.systemprompt import PROMPT
  
 
-TOOLBOX = [
+toolBox = [
     searchWeb,
     searchYoutube,
     #get_weather,
@@ -28,8 +28,8 @@ TOOLBOX = [
     #read_file,
 ]
 #different from gemini, pls see this in detail once. it uses toolschema now to get a general gist of syntax
-TOOL_SCHEMAS = [function_to_tool_schema(fn) for fn in TOOLBOX]
-TOOL_MAP = {fn.__name__: fn for fn in TOOLBOX}
+toolSchemas = [functionToToolSchema(fn) for fn in toolBox]
+toolMap = {fn.__name__: fn for fn in toolBox}
  
 
  
@@ -38,28 +38,33 @@ TOOL_MAP = {fn.__name__: fn for fn in TOOLBOX}
 MODEL = os.environ.get("NOVA_MODEL", "gpt-5")
  
  
-def _get_client() -> OpenAI:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
+def getClient() -> OpenAI:
+    apiKey = os.environ.get("OPENAI_API_KEY")
+    if not apiKey:
         raise RuntimeError(
             "No API key found. Set OPENAI_API_KEY in your .env file first "
             "(see the README). Never paste a key directly into code."
         )
     # leave OPENAI_BASE_URL unset for real OpenAI, or point it at other supported ones (test krlena tb bhi ek baar)
-    base_url = os.environ.get("OPENAI_BASE_URL") or None
-    return OpenAI(api_key=api_key, base_url=base_url)
+    baseUrl = os.environ.get("OPENAI_BASE_URL") or None
+    if baseUrl:
+        return OpenAI(api_key=apiKey, base_url=baseUrl, max_retries=0)
+
+    # An empty OPENAI_BASE_URL overrides the SDK's default endpoint.
+    os.environ.pop("OPENAI_BASE_URL", None)
+    return OpenAI(api_key=apiKey, max_retries=0)
  
 
-def create_nova() -> list:
+def createNova() -> list:
     """Return a fresh conversation: a plain list of message dicts,
     starting with the system instruction. This list IS "the chat" from
     here on, ask_nova() appends to it in place and returns it.
     """
-    _get_client()  
+    getClient()
     return [{"role": "system", "content":PROMPT}]
  
   #Frankly, ive no idea what exception handling is happening inside here
-def ask_nova(chat: list, message: str, tries: int = 3) -> str:
+def askNova(chat: list, message: str, tries: int = 1) -> str:
     """Send one message to NOVA and get its text reply back.
  
     Runs the manual tool-calling loop: send messages -> check for
@@ -67,16 +72,16 @@ def ask_nova(chat: list, message: str, tries: int = 3) -> str:
     result back -> get the final reply.
 
     """
-    client = _get_client()
+    client = getClient()
     chat.append({"role": "user", "content": message})
  
-    last_error = None
+    lastError = None
     for attempt in range(tries):
         try:
             response = client.chat.completions.create(
                 model=MODEL,
                 messages=chat,
-                tools=TOOL_SCHEMAS,
+                tools=toolSchemas,
             )
             msg = response.choices[0].message
  
@@ -98,25 +103,25 @@ def ask_nova(chat: list, message: str, tries: int = 3) -> str:
                     ],
                 })
  
-                for tool_call in msg.tool_calls:
-                    fn = TOOL_MAP[tool_call.function.name]
+                for toolCall in msg.tool_calls:
+                    fn = toolMap[toolCall.function.name]
                    
                     #we are acccepting argument as json and converting it to dict. the SDK did this by itself previously
                     #(in all honesty i used claude for this, idk which key value pairs to take)
-                    args = json.loads(tool_call.function.arguments)
+                    args = json.loads(toolCall.function.arguments)
                     result = fn(**args)
                     chat.append({
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
+                        "tool_call_id": toolCall.id,
                         "content": str(result),
                     })
  
                 # One more call so the model can phrase a final reply
                 # using the tool result(s) we just appended.
                 followup = client.chat.completions.create(model=MODEL, messages=chat)
-                final_text = followup.choices[0].message.content
-                chat.append({"role": "assistant", "content": final_text})
-                return final_text
+                finalText = followup.choices[0].message.content
+                chat.append({"role": "assistant", "content": finalText})
+                return finalText
  
             
             chat.append({"role": "assistant", "content": msg.content})
@@ -124,8 +129,9 @@ def ask_nova(chat: list, message: str, tries: int = 3) -> str:
  
         except openai.RateLimitError:
             return (
-                "I've hit the usage limit for this API key. Please try "
-                "again later, or use a key with more quota."
+                f"The provider at {client.base_url} rate-limited this request "
+                "(HTTP 429). Wait a moment and try again; repeated retries "
+                "will not bypass the provider's limit."
             )
         except openai.AuthenticationError:
             return (
@@ -139,7 +145,7 @@ def ask_nova(chat: list, message: str, tries: int = 3) -> str:
                 f"— see the README for how to check current model names. ({error})"
             )
         except Exception as error:
-            last_error = error
+            lastError = error
             time.sleep(1.5 * (attempt + 1))
  
-    return f"The AI service was busy and didn't answer. ({last_error})"
+    return f"The AI service was busy and didn't answer. ({type(lastError).__name__}: {lastError})"

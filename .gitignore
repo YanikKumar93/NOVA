@@ -220,4 +220,8 @@ __marimo__/
 .streamlit/secrets.toml
 
 #extrafiles
-env.example
+.env
+.env.*
+!.env.example
+
+.openaikey.txt

@@ -16,7 +16,7 @@ interface P2/P3/P4 were given changes because of this provider switch.
 import inspect
 import re
 
-_TYPE_MAP = {
+typeMap = {
     str: "string",
     int: "integer",
     float: "number",
@@ -24,7 +24,7 @@ _TYPE_MAP = {
 }
 
 
-def function_to_tool_schema(func) -> dict:
+def functionToToolSchema(func) -> dict:
     """Build one OpenAI-style tool schema entry from a function's
     signature and docstring.
     """
@@ -39,22 +39,22 @@ def function_to_tool_schema(func) -> dict:
     # Pull per-argument descriptions out of a Google-style "Args:" block,
     # if the docstring has one — matches the style already used across
     # tools/files.py, tools/weather.py, tools/web_search.py.
-    arg_descriptions = {}
+    argDescriptions = {}
     match = re.search(r"Args:\s*\n(.*)", doc, re.DOTALL)
     if match:
         for line in match.group(1).strip().split("\n"):
             line = line.strip()
             if ":" in line:
                 name, desc = line.split(":", 1)
-                arg_descriptions[name.strip()] = desc.strip()
+                argDescriptions[name.strip()] = desc.strip()
 
     properties = {}
     required = []
     for name, param in sig.parameters.items():
-        json_type = _TYPE_MAP.get(param.annotation, "string")
+        jsonType = typeMap.get(param.annotation, "string")
         properties[name] = {
-            "type": json_type,
-            "description": arg_descriptions.get(name, ""),
+            "type": jsonType,
+            "description": argDescriptions.get(name, ""),
         }
         if param.default is inspect.Parameter.empty:
             required.append(name)
