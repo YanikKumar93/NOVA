@@ -58,7 +58,12 @@ def searchWeb(query: str) -> str:
     try:
         response = requests.post(
             "https://api.tavily.com/search",
-            json={"api_key": api_key, "query": query, "max_results": 3},
+            json={
+                "api_key": api_key,
+                "query": query,
+                "max_results": 3,
+                "include_answer": True,
+            },
             timeout=10,
         )
         response.raise_for_status()
