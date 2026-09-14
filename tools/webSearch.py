@@ -182,13 +182,6 @@ def _tavilySummary(query: str):
             json=payload,
             headers=headers,
             timeout=_timeout(),
-            json={
-                "api_key": api_key,
-                "query": query,
-                "max_results": 3,
-                "include_answer": True,
-            },
-            timeout=10,
         )
 
         # Older Tavily docs put the key in the JSON body instead of a header.
