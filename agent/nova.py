@@ -118,7 +118,12 @@ def askNova(chat: list, message: str, tries: int = 1) -> str:
  
                 # One more call so the model can phrase a final reply
                 # using the tool result(s) we just appended.
-                followup = client.chat.completions.create(model=MODEL, messages=chat)
+                # followup = client.chat.completions.create(model=MODEL, messages=chat)
+                followup = client.chat.completions.create(
+                    model=MODEL,
+                    messages=chat,
+                    tools=toolSchemas,
+                )
                 finalText = followup.choices[0].message.content
                 chat.append({"role": "assistant", "content": finalText})
                 return finalText
