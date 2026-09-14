@@ -13,7 +13,7 @@ from openai import OpenAI
 import openai
  
 from tools.toolSchema import functionToToolSchema
-from tools.webSearch import searchWeb, searchYoutube
+from tools.webSearch import searchWeb, searchYoutube, searchWikipedia
 #from tools.files import create_folder, create_file, read_file #PLACEHOLDER
 #from tools.weather import get_weather #PLACEHOLDER
 from agent.systemprompt import PROMPT
@@ -22,6 +22,7 @@ from agent.systemprompt import PROMPT
 toolBox = [
     searchWeb,
     searchYoutube,
+    searchWikipedia
     #get_weather,
     #create_folder,
     #create_file,

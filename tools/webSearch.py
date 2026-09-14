@@ -232,7 +232,7 @@ def _tavilySummary(query: str):
 # ------------------------------------------------------------------ tools
 
 def searchWeb(query: str) -> str:
-    """Search the live web for facts, news, prices or current information, open the results in the browser, and return a short summary; use this for any "what is X", "who is Y" or "latest news about Z" question, but never for videos.
+    """Search the live web for current facts, prices, news, and explanations, and return a short summary.
 
     Args:
         query: The search terms to look up on the web.
@@ -270,7 +270,7 @@ def searchWeb(query: str) -> str:
 
 
 def searchYoutube(query: str) -> str:
-    """Search YouTube and open the video results in the browser, for any request to watch, play, find or open a video, such as "play lofi music" or "find a video about photosynthesis".
+    """Search YouTube for a video and open the results in the browser.
 
     Args:
         query: What video to search YouTube for.
@@ -289,7 +289,7 @@ def searchYoutube(query: str) -> str:
 
 
 def searchWikipedia(query: str) -> str:
-    """Look up an encyclopedic summary of a person, place, event, organisation or concept from Wikipedia and return it as text without opening a browser, best for background explanations rather than news or current events.
+    """Look up a factual summary from Wikipedia and return it as text without opening a browser.
 
     Args:
         query: The topic, person or thing to look up on Wikipedia.
