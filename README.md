@@ -159,6 +159,18 @@ Do not commit `.env`, paste keys into Python files, or share keys in screenshots
 python main.py
 ```
 
+To use the Streamlit chat interface instead:
+
+```powershell
+streamlit run streamlit_app.py
+```
+
+The web interface keeps the conversation in Streamlit session state and
+reuses the same agent and tool-calling flow as terminal mode. Request
+preparation is isolated in `agent/pipeline.py`, which currently preserves the
+existing behavior and provides extension points for the planned intent
+classifier and retrieval-augmented generation (RAG) layer.
+
 You should see:
 
 ```text
