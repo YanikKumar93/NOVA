@@ -14,7 +14,7 @@ import openai
  
 from tools.toolSchema import functionToToolSchema
 from tools.webSearch import searchWeb, searchYoutube, searchWikipedia
-#from tools.files import create_folder, create_file, read_file #PLACEHOLDER
+from tools.files import create_folder, create_file, read_file
 #from tools.weather import get_weather #PLACEHOLDER
 from agent.systemprompt import PROMPT
  
@@ -22,11 +22,11 @@ from agent.systemprompt import PROMPT
 toolBox = [
     searchWeb,
     searchYoutube,
-    searchWikipedia
+    searchWikipedia,
+    create_folder,
+    create_file,
+    read_file,
     #get_weather,
-    #create_folder,
-    #create_file,
-    #read_file,
 ]
 #different from gemini, pls see this in detail once. it uses toolschema now to get a general gist of syntax
 toolSchemas = [functionToToolSchema(fn) for fn in toolBox]
