@@ -49,24 +49,32 @@ Provider model names and availability change. `openaimodelcheck.py` can be used 
 
 ```text
 .
+├── app.py                         Streamlit entry point
+├── main.py                        Terminal entry point
 ├── agent/
-│   ├── nova.py             Client setup, conversation loop, and tool calling
-│   ├── systemprompt.py     NOVA's personality and behavior instructions
-│   └── __init__.py
+│   ├── nova.py                    Client setup, conversation loop, and tool calling
+│   ├── pipeline.py                Request-preparation hooks for intent/RAG work
+│   ├── systemprompt.py            NOVA's personality and behavior instructions
+│   └── __init__.py                Agent package marker
 ├── tools/
-│   ├── toolSchema.py       Converts Python functions into tool schemas
-│   ├── webSearch.py        Web and YouTube browser/search tools
-│   └── __init__.py
-├── app.py                  Streamlit entry point
-├── tools/files.py          Workspace-scoped file tools
-├── tools/weather.py        Weather API tool
-├── tools/news.py           News headlines API tool
-├── tools/currency.py       Currency conversion API tool
-├── main.py                 Terminal entry point
-├── dev utils/openaimodelcheck.py  Lists models from the configured provider
-├── dev utils/env.example    Safe environment-variable template
-├── requirements.txt        Python dependencies
-└── .gitignore              Keeps local secrets and generated files out of Git
+│   ├── webSearch.py                Web, YouTube, and Wikipedia search tools
+│   ├── files.py                    File creation, folder creation, and reading tools
+│   ├── weather.py                  Weather API tool
+│   ├── news.py                     News headlines API tool
+│   ├── currency.py                 Currency conversion API tool
+│   ├── client.py                   Shared HTTP helper for API tools
+│   ├── toolSchema.py               Converts Python functions into tool schemas
+│   ├── __init__.py                 API-tool exports
+│   └── ...                          Generated __pycache__ files are omitted
+├── dev utils/
+│   ├── env.example                 Safe environment-variable template
+│   ├── openaimodelcheck.py         Lists models from the configured provider
+│   └── test_tools.py                Development tool checks
+├── websearchOLDWORKING.py          Legacy web-search implementation
+├── NOVA_Work_Division.md           Team responsibilities and work status
+├── requirements.txt                Python dependencies
+├── .gitignore                      Keeps local secrets and generated files out of Git
+└── ...                              Local .env/key files and generated files are omitted
 ```
 
 ## How the Request Works
