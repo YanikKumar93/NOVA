@@ -5,22 +5,23 @@ from tools.client import get_json
 
 load_dotenv()
 
-API_KEY = os.getenv("OPENWEATHER_API_KEY")
 URL = "https://api.openweathermap.org/data/2.5/weather"
 
 def get_weather(city: str) -> str:
     """
     Get current weather for a city.
-    Args: city — name of the city, e.g. "Delhi"
+        Args:
+            city: Name of the city, e.g. "Delhi".
     Returns a short spoken-friendly sentence.
     """
     if not city or not city.strip():
         return "I need a city name to check the weather."
 
-    if not API_KEY:
+    apiKey = os.getenv("OPENWEATHER_API_KEY")
+    if not apiKey:
         return "Weather isn't set up yet — the API key is missing."
 
-    params = {"q": city.strip(), "appid": API_KEY, "units": "metric"}
+    params = {"q": city.strip(), "appid": apiKey, "units": "metric"}
     data, error = get_json(URL, params)
 
     if error:

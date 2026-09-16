@@ -8,9 +8,9 @@ def convert_currency(amount: float, from_currency: str, to_currency: str) -> str
     """
     Convert an amount from one currency to another.
     Args:
-        amount — how much to convert, e.g. 500
-        from_currency — 3-letter code, e.g. "USD"
-        to_currency — 3-letter code, e.g. "INR"
+    amount: How much to convert, e.g. 500.
+    from_currency: 3-letter code, e.g. "USD".
+    to_currency: 3-letter code, e.g. "INR".
     Returns a short spoken-friendly sentence.
     """
     try:
@@ -29,7 +29,6 @@ def convert_currency(amount: float, from_currency: str, to_currency: str) -> str
 
     if not source or not target:
         return "I need both currencies to convert between."
-
     if source == target:
         return f"{amount:g} {source} is just {amount:g} {source}."
 

@@ -15,7 +15,9 @@ import openai
 from tools.toolSchema import functionToToolSchema
 from tools.webSearch import searchWeb, searchYoutube, searchWikipedia
 from tools.files import create_folder, create_file, read_file
-#from tools.weather import get_weather #PLACEHOLDER
+from tools.weather import get_weather
+from tools.news import get_news
+from tools.currency import convert_currency
 from agent.systemprompt import PROMPT
  
 
@@ -26,7 +28,9 @@ toolBox = [
     create_folder,
     create_file,
     read_file,
-    #get_weather,
+    get_weather,
+    get_news,
+    convert_currency,
 ]
 #different from gemini, pls see this in detail once. it uses toolschema now to get a general gist of syntax
 toolSchemas = [functionToToolSchema(fn) for fn in toolBox]
@@ -85,9 +89,8 @@ def askNova(chat: list, message: str, tries: int = 1) -> str:
                 tools=toolSchemas,
             )
             msg = response.choices[0].message
- 
+
             if msg.tool_calls:
-                # we are turning the chat history as a saveable dict, so if we switch models the history wont be lost
                 chat.append({
                     "role": "assistant",
                     "content": msg.content,
@@ -103,12 +106,9 @@ def askNova(chat: list, message: str, tries: int = 1) -> str:
                         for tc in msg.tool_calls
                     ],
                 })
- 
+
                 for toolCall in msg.tool_calls:
                     fn = toolMap[toolCall.function.name]
-                   
-                    #we are acccepting argument as json and converting it to dict. the SDK did this by itself previously
-                    #(in all honesty i used claude for this, idk which key value pairs to take)
                     args = json.loads(toolCall.function.arguments)
                     result = fn(**args)
                     chat.append({
@@ -116,10 +116,7 @@ def askNova(chat: list, message: str, tries: int = 1) -> str:
                         "tool_call_id": toolCall.id,
                         "content": str(result),
                     })
- 
-                # One more call so the model can phrase a final reply
-                # using the tool result(s) we just appended.
-                # followup = client.chat.completions.create(model=MODEL, messages=chat)
+
                 followup = client.chat.completions.create(
                     model=MODEL,
                     messages=chat,
@@ -128,8 +125,7 @@ def askNova(chat: list, message: str, tries: int = 1) -> str:
                 finalText = followup.choices[0].message.content
                 chat.append({"role": "assistant", "content": finalText})
                 return finalText
- 
-            
+
             chat.append({"role": "assistant", "content": msg.content})
             return msg.content
  

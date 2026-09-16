@@ -17,6 +17,8 @@ def get_json(url, params=None):
         return None, "I couldn't reach the internet"
     except requests.exceptions.RequestException:
         return None, "the request failed"
+    except Exception:
+        return None, "the request failed"
 
     if response.status_code == 401:
         return None, "the API key is missing or invalid"
