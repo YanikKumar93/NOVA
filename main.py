@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from agent.nova import createNova, askNova
+from agent.nova import createNova, askNova, toolMap
 from tools.classifier import IntentClassifier
 
 classifier = IntentClassifier()
@@ -22,15 +22,15 @@ def main():
 
         if intent is None or intent == "LLM":
             print("NOVA:", askNova(chat, userText))
-        elif intent == "OPEN_WEBSITE":
-            print("NOVA: OPEN_WEBSITE")
-        elif intent == "WEATHER":
-            print("NOVA: WEATHER")
-        elif intent == "CREATE_FILE":
-            print("NOVA: CREATE_FILE")
-        elif intent == "SEARCH_WEB":
-            print("NOVA: SEARCH_WEB")
-        else:
+
+        elif intent in toolMap:
+            handler = toolMap[intent]
+
+            try:
+                print("NOVA:", handler(userText))
+            except Exception:
+                print("NOVA:", askNova(chat, userText))
+        else: # shouldnt happen but hey safety
             print("NOVA:", askNova(chat, userText))
 
 
