@@ -37,11 +37,7 @@ The variable is called `OPENAI_API_KEY` because that is the name expected by the
 | Groq | `https://api.groq.com/openai/v1` | Check Groq's current model list |
 | Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest`, `mistral-large-latest` |
 | DeepSeek | `https://api.deepseek.com` | `deepseek-chat`, `deepseek-reasoner` |
-| Together AI | `https://api.together.xyz/v1` | Check Together's current model list |
-| Fireworks AI | `https://api.fireworks.ai/inference/v1` | Check Fireworks' current model list |
-| Cerebras | `https://api.cerebras.ai/v1` | Check Cerebras' current model list |
-| xAI / Grok | `https://api.x.ai/v1` | Check xAI's current model list |
-| OpenRouter | `https://openrouter.ai/api/v1` | Use an OpenRouter model ID | kinda reduntant since we have to pay for it, dont rlly use this one
+
 
 Provider model names and availability change. `openaimodelcheck.py` can be used to list the models visible to the configured key. this is not as helpful, since it lists ALL the models available, not the ones available to _just_ you with your free tier
 
@@ -81,7 +77,7 @@ Provider model names and availability change. `openaimodelcheck.py` can be used 
 
 The runtime flow is intentionally manual and easy to follow:
 
-1. `main.py` loads `.env` and creates a fresh conversation.
+1. `main.py` loads for running the agent in terminal
 2. `createNova()` adds the system prompt as the first message.
 3. The user enters a message in the terminal.
 4. `askNova()` sends the conversation, model name, and generated tool schemas to the provider.
@@ -94,7 +90,7 @@ The conversation is stored in the `chat` list while the program is running. It i
 
 ## Tool Schemas
 
-The model cannot automatically understand an arbitrary Python function. `tools/toolSchema.py` inspects each function's type hints and docstring and converts it into the JSON schema expected by OpenAI-compatible APIs. (this part was done by AI since i couldnt understand shit)
+The model cannot automatically understand an arbitrary Python function. `tools/toolSchema.py` inspects each function's type hints and docstring and converts it into the JSON schema expected by OpenAI-compatible APIs. (this part was done by AI since i couldnt understand --shit--)
 
 That lets tools stay as ordinary Python functions:
 
