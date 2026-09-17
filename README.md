@@ -90,7 +90,9 @@ The conversation is stored in the `chat` list while the program is running. It i
 
 ## Tool Schemas
 
-The model cannot automatically understand an arbitrary Python function. `tools/toolSchema.py` inspects each function's type hints and docstring and converts it into the JSON schema expected by OpenAI-compatible APIs. (this part was done by AI since i couldnt understand --shit--)
+The model cannot automatically understand an arbitrary Python function. `tools/toolSchema.py` inspects each function's type hints and docstring and converts it into the JSON schema expected by OpenAI-compatible APIs. (this part was done by AI since i couldnt understand ~~shit~~ it
+
+
 
 That lets tools stay as ordinary Python functions:
 
