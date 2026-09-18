@@ -4,10 +4,22 @@ import re
 
 from agent.nova import askNova, toolMap
 from agent.pipeline import classifyIntent, prepareMessage
+from agent.routing_log import logRoutingDecision
 from tools.classifier import IntentClassifier
 
 
 classifier = IntentClassifier()
+
+
+def isMemoryRequest(text: str) -> bool:
+    """Memory language must be handled by NOVA's memory tools."""
+    return bool(
+        re.search(
+            r"\b(remember|memor(?:y|ise|ize)|forget|save\s+(?:this|that)|keep\s+in\s+mind)\b",
+            text,
+            re.I,
+        )
+    )
 
 
 def directArguments(intent: str, text: str) -> tuple:
@@ -50,15 +62,23 @@ def routeRequest(message: str, chat: list) -> str:
     intent, confidence = classifier.predict(message)
 
     if classifyIntent(message) == "study_material_rag":
+        logRoutingDecision(intent, confidence, "agent", reason="study_material_rag")
         return askNova(chat, prepareMessage(message))
+
+    if isMemoryRequest(message):
+        logRoutingDecision(intent, confidence, "agent", reason="memory_request")
+        return askNova(chat, message)
 
     if intent in toolMap and intent != "LLM":
         try:
-            result = str(toolMap[intent](*directArguments(intent, message)))
+            arguments = directArguments(intent, message)
+            result = str(toolMap[intent](*arguments))
+            logRoutingDecision(intent, confidence, "system_tool", tool=intent)
             chat.append({"role": "user", "content": message})
             chat.append({"role": "assistant", "content": result})
             return result
         except Exception:
-            pass
+            logRoutingDecision(intent, confidence, "agent", tool=intent, reason="system_tool_failed")
 
+    logRoutingDecision(intent, confidence, "agent", reason="no_matching_system_tool")
     return askNova(chat, message)
