@@ -23,7 +23,6 @@ typeMap = {
     bool: "boolean",
 }
 
-
 def functionToToolSchema(func) -> dict:
     """Build one OpenAI-style tool schema entry from a function's
     signature and docstring.

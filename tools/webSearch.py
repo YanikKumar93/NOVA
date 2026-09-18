@@ -132,6 +132,15 @@ def _validQuery(query) -> str:
     return query
 
 
+def _asBool(value) -> bool:
+    """Convert the boolean values models commonly send as text."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "1", "yes", "y")
+    return bool(value)
+
+
 def _browserEnabled() -> bool:
     # Read the env var at call time, not import time — main.py loads .env
     # after this module is imported.
@@ -231,42 +240,47 @@ def _tavilySummary(query: str):
 
 # ------------------------------------------------------------------ tools
 
-def searchWeb(query: str) -> str:
-    """Search the live web for current facts, prices, news, and explanations, and return a short summary.
+def searchWeb(query: str, openInBrowser: bool = True) -> str:
+    """Search the live web and return a short summary, optionally opening the results in a browser.
 
     Args:
         query: The search terms to look up on the web.
+        openInBrowser: Whether to open the search results in a browser. Defaults to true for compatibility with the original tool.
     """
     query = _validQuery(query)
     if not query:
         return "I need something to search for. What should I look up?"
 
+    wantsBrowser = _asBool(openInBrowser)
     searchUrl = "https://www.google.com/search?q=" + urllib.parse.quote(query)
-    opened = _openBrowser(searchUrl)
-    openedNote = "Opened the search in your browser. " if opened else ""
 
     cacheKey = "web:" + query.lower()
     cached = _cacheGet(cacheKey)
     if cached:
-        return openedNote + cached
+        if wantsBrowser and _openBrowser(searchUrl):
+            return "Opened the search in your browser. " + cached
+        return cached
 
     ok, text = _tavilySummary(query)
     if ok:
         _cacheSet(cacheKey, text)
-        return openedNote + text
+        if wantsBrowser and _openBrowser(searchUrl):
+            return "Opened the search in your browser. " + text
+        return text
 
-    # Every failure below still tells the user something true and useful.
+    # If no summary is available, opening the results remains the default
+    # behavior, while explicit summary-only requests avoid opening a tab.
     messages = {
-        "no key": "I don't have a search-summary key set up, so I can't read the results out - they're on screen.",
-        "bad key": "My search key was rejected, so I can only show the page, not summarise it.",
-        "rate limited": "The search service has hit its usage limit for now, so I can only show the page.",
-        "timeout": "The search service took too long to answer, so I can only show the page.",
-        "empty": "I couldn't find a clear answer for that, but the results are on screen.",
+        "no key": "I don't have a search-summary key set up",
+        "bad key": "My search key was rejected",
+        "rate limited": "The search service has hit its usage limit",
+        "timeout": "The search service took too long to answer",
+        "empty": "I couldn't find a clear answer for that",
     }
-    fallback = messages.get(text, "I couldn't fetch a summary just now, but the results are on screen.")
-    if opened:
-        return "Opened a search for '" + query + "'. " + fallback
-    return "I couldn't open a browser here. " + fallback
+    reason = messages.get(text, "I couldn't fetch a summary just now")
+    if wantsBrowser and _openBrowser(searchUrl):
+        return f"{reason}, so I've opened the results for '{query}' in your browser instead."
+    return f"{reason}, and I couldn't open a browser either. Try again in a moment."
 
 
 def searchYoutube(query: str) -> str:
