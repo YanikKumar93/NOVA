@@ -15,6 +15,9 @@ class IntentClassifier:
         self.clf = joblib.load(model_dir / "classifier.joblib")
 
     def predict(self, text: str) -> Tuple[Optional[str], float]:
+        if not text or not text.strip():
+            return None, 0.0
+
         X = self.vectorizer.transform([text])
         probs = self.clf.predict_proba(X)[0]
         ranked_idx = probs.argsort()[::-1]
