@@ -1,14 +1,26 @@
-"""Route user requests to direct tools or the NOVA agent."""
+#router for main and app.py
 
+import os
 import re
 
 from agent.nova import askNova, toolMap
 from agent.pipeline import classifyIntent, prepareMessage
-from agent.routing_log import logRoutingDecision
+from agent.routing_log import logRouteDecision
 from tools.classifier import IntentClassifier
 
 
 classifier = IntentClassifier()
+
+
+def hasApiKeyFor(intent: str) -> bool:
+    if intent == "get_weather":
+        return bool(os.getenv("OPENWEATHER_API_KEY"))
+    if intent == "get_news":
+        return bool(os.getenv("GNEWS_API_KEY"))
+    return True
+
+#weather nd news requests would randomly get called on any question asked if an initial weather question couldnt be answered due to absent API key
+#i really dont get why it did that, but it did and now its fixed
 
 
 def isMemoryRequest(text: str) -> bool:
@@ -23,7 +35,6 @@ def isMemoryRequest(text: str) -> bool:
 
 
 def directArguments(intent: str, text: str) -> tuple:
-    """Extract arguments for tools that can run without the model."""
     if intent == "get_weather":
         match = re.search(r"(?:weather|temperature)\s+(?:in|for)\s+(.+)", text, re.I)
         return (match.group(1).strip() if match else text,)
@@ -53,32 +64,31 @@ def directArguments(intent: str, text: str) -> tuple:
 
 
 def routeRequest(message: str, chat: list) -> str:
-    """Run a request directly or send it through NOVA.
-
-    Document questions always use the RAG preparation pipeline before going
-    to the model. High-confidence classifier labels call the matching tool
-    directly. Unknown or ambiguous requests use the model agent.
-    """
+    #self explanatory
     intent, confidence = classifier.predict(message)
 
     if classifyIntent(message) == "study_material_rag":
-        logRoutingDecision(intent, confidence, "agent", reason="study_material_rag")
+        logRouteDecision(intent, confidence, "agent", reason="study_material_rag")
         return askNova(chat, prepareMessage(message))
 
     if isMemoryRequest(message):
-        logRoutingDecision(intent, confidence, "agent", reason="memory_request")
+        logRouteDecision(intent, confidence, "agent", reason="memory_request")
+        return askNova(chat, message)
+
+    if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
+        logRouteDecision(intent, confidence, "agent", reason="api_key_missing")
         return askNova(chat, message)
 
     if intent in toolMap and intent != "LLM":
         try:
             arguments = directArguments(intent, message)
             result = str(toolMap[intent](*arguments))
-            logRoutingDecision(intent, confidence, "system_tool", tool=intent)
+            logRouteDecision(intent, confidence, "system_tool", tool=intent)
             chat.append({"role": "user", "content": message})
             chat.append({"role": "assistant", "content": result})
             return result
         except Exception:
-            logRoutingDecision(intent, confidence, "agent", tool=intent, reason="system_tool_failed")
+            logRouteDecision(intent, confidence, "agent", tool=intent, reason="system_tool_failed")
 
-    logRoutingDecision(intent, confidence, "agent", reason="no_matching_system_tool")
+    logRouteDecision(intent, confidence, "agent", reason="no_matching_system_tool")
     return askNova(chat, message)

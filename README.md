@@ -212,7 +212,7 @@ This lists models visible to the configured provider. It does not guarantee that
 - Missing `OPENAI_API_KEY`: copy `.env.example` to `.env` and add a provider key.
 - Model not found: set `NOVA_MODEL` to a model available from the configured provider.
 - Provider connection error: check that `OPENAI_BASE_URL` is either blank or a complete URL beginning with `https://`.
-- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`. Weather falls back to Google/Tavily search when the OpenWeather key is blank.
+- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`. When a key is missing, the router hands the request to NOVA instead of calling the unavailable system tool. The tools themselves do not open browser or search fallbacks.
 - RAG import or embedding errors: reinstall `requirements.txt`; the first embedding use may download a sentence-transformers model.
 - Classifier loading errors: use the same Python environment that installed `joblib` and `scikit-learn`.
 - Stale document results: remove the local `chroma_db/` directory and re-upload the documents. This clears only the local vector index.
