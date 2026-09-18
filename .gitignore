@@ -228,6 +228,4 @@ nova_memory.json
 chroma_db/
 temp_uploads/
 test.txt
-
-# Legacy local implementation
-websearchOLDWORKING.py
+stufftofix.txt
