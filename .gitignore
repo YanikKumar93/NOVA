@@ -225,3 +225,4 @@ __marimo__/
 !.env.example
 websearchOLDWORKING.py
 .openaikey.txt
+nova_memory.json

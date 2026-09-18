@@ -1,23 +1,27 @@
 """
-project is built entirely different now, it relises on openai instead of google SDK, it can accept many diff
-agents through openRouter(or others if needed). but each agent should be checked for tool schema compatibility
-
-this version of nova does NOT store chat history in `chat` like gemini-sdk did. its stateless
+agent/nova.py — OpenAI-compatible client, tool-calling loop, fallbacks.
 """
 
 import os
 import json
 import time
- 
+
 from openai import OpenAI
 import openai
- 
+
 from tools.toolSchema import functionToToolSchema
 from tools.webSearch import searchWeb, searchYoutube, searchWikipedia
-from tools.files import create_folder, create_file, read_file
-#from tools.weather import get_weather #PLACEHOLDER
+from tools.files import create_folder, create_file, read_file, edit_file
+from tools.memory import (
+    save_memory,
+    recall_memory,
+    forget_memory,
+    formatMemoriesForPrompt,
+)
+from tools.rag import ingest_document, ask_document
 from agent.systemprompt import PROMPT
- 
+from agent.fallback import safe_call, friendly_provider_error, secondary_model
+
 
 toolBox = [
     searchWeb,
@@ -26,132 +30,149 @@ toolBox = [
     create_folder,
     create_file,
     read_file,
-    #get_weather,
+    edit_file,
+    save_memory,
+    recall_memory,
+    forget_memory,
+    ingest_document,
+    ask_document,
 ]
-#different from gemini, pls see this in detail once. it uses toolschema now to get a general gist of syntax
+
 toolSchemas = [functionToToolSchema(fn) for fn in toolBox]
 toolMap = {fn.__name__: fn for fn in toolBox}
- 
 
- 
-# Model names change often,see README for how to list what's currently
-# available on whichever provider OPENAI_BASE_URL points at.
-MODEL = os.environ.get("NOVA_MODEL", "gpt-5")
- 
- 
+MODEL = os.environ.get("NOVA_MODEL", "gpt-4o-mini")
+
+
 def getClient() -> OpenAI:
-    apiKey = os.environ.get("OPENAI_API_KEY")
-    if not apiKey:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
         raise RuntimeError(
-            "No API key found. Set OPENAI_API_KEY in your .env file first "
-            "(see the README). Never paste a key directly into code."
+            "No API key found. Set OPENAI_API_KEY in your .env file first."
         )
-    # leave OPENAI_BASE_URL unset for real OpenAI, or point it at other supported ones (test krlena tb bhi ek baar)
-    baseUrl = os.environ.get("OPENAI_BASE_URL") or None
-    if baseUrl:
-        return OpenAI(api_key=apiKey, base_url=baseUrl, max_retries=0)
 
-    # An empty OPENAI_BASE_URL overrides the SDK's default endpoint.
+    base_url = os.environ.get("OPENAI_BASE_URL") or None
+    if base_url:
+        return OpenAI(api_key=api_key, base_url=base_url, max_retries=0)
+
     os.environ.pop("OPENAI_BASE_URL", None)
-    return OpenAI(api_key=apiKey, max_retries=0)
- 
+    return OpenAI(api_key=api_key, max_retries=0)
+
 
 def createNova() -> list:
-    """Return a fresh conversation: a plain list of message dicts,
-    starting with the system instruction. This list IS "the chat" from
-    here on, ask_nova() appends to it in place and returns it.
-    """
+    """Return a fresh conversation with system prompt + saved user facts."""
     getClient()
-    return [{"role": "system", "content":PROMPT}]
- 
-  #Frankly, ive no idea what exception handling is happening inside here
-def askNova(chat: list, message: str, tries: int = 1) -> str:
-    """Send one message to NOVA and get its text reply back.
- 
-    Runs the manual tool-calling loop: send messages -> check for
-    tool_calls -> execute the matching Python function -> send the
-    result back -> get the final reply.
+    chat = [{"role": "system", "content": PROMPT}]
 
-    """
+    memory_text = formatMemoriesForPrompt()
+    if memory_text:
+        chat.append({"role": "system", "content": memory_text})
+
+    return chat
+
+
+def askNova(chat: list, message: str, tries: int = 2) -> str:
+    """Send one message to NOVA with tool-calling + provider/model fallback."""
     client = getClient()
     chat.append({"role": "user", "content": message})
- 
-    lastError = None
-    for attempt in range(tries):
-        try:
-            response = client.chat.completions.create(
-                model=MODEL,
-                messages=chat,
-                tools=toolSchemas,
-            )
-            msg = response.choices[0].message
- 
-            if msg.tool_calls:
-                # we are turning the chat history as a saveable dict, so if we switch models the history wont be lost
-                chat.append({
-                    "role": "assistant",
-                    "content": msg.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in msg.tool_calls
-                    ],
-                })
- 
-                for toolCall in msg.tool_calls:
-                    fn = toolMap[toolCall.function.name]
-                   
-                    #we are acccepting argument as json and converting it to dict. the SDK did this by itself previously
-                    #(in all honesty i used claude for this, idk which key value pairs to take)
-                    args = json.loads(toolCall.function.arguments)
-                    result = fn(**args)
-                    chat.append({
-                        "role": "tool",
-                        "tool_call_id": toolCall.id,
-                        "content": str(result),
-                    })
- 
-                # One more call so the model can phrase a final reply
-                # using the tool result(s) we just appended.
-                # followup = client.chat.completions.create(model=MODEL, messages=chat)
-                followup = client.chat.completions.create(
-                    model=MODEL,
+
+    models_to_try = [MODEL]
+    backup = secondary_model()
+    if backup and backup not in models_to_try:
+        models_to_try.append(backup)
+
+    last_error = None
+
+    for current_model in models_to_try:
+        for attempt in range(max(1, tries)):
+            try:
+                response = client.chat.completions.create(
+                    model=current_model,
                     messages=chat,
                     tools=toolSchemas,
                 )
-                finalText = followup.choices[0].message.content
-                chat.append({"role": "assistant", "content": finalText})
-                return finalText
- 
-            
-            chat.append({"role": "assistant", "content": msg.content})
-            return msg.content
- 
-        except openai.RateLimitError:
-            return (
-                f"The provider at {client.base_url} rate-limited this request "
-                "(HTTP 429). Wait a moment and try again; repeated retries "
-                "will not bypass the provider's limit."
-            )
-        except openai.AuthenticationError:
-            return (
-                "My API key doesn't seem to be working. Double-check "
-                "OPENAI_API_KEY in your .env file and try again."
-            )
-        except openai.NotFoundError as error:
-            return (
-                f"The model '{MODEL}' isn't available on this API. "
-                "Update NOVA_MODEL (or the MODEL default in agent/nova.py) "
-                f"— see the README for how to check current model names. ({error})"
-            )
-        except Exception as error:
-            lastError = error
-            time.sleep(1.5 * (attempt + 1))
- 
-    return f"The AI service was busy and didn't answer. ({type(lastError).__name__}: {lastError})"
+                msg = response.choices[0].message
+
+                if msg.tool_calls:
+                    chat.append(
+                        {
+                            "role": "assistant",
+                            "content": msg.content,
+                            "tool_calls": [
+                                {
+                                    "id": tc.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": tc.function.name,
+                                        "arguments": tc.function.arguments,
+                                    },
+                                }
+                                for tc in msg.tool_calls
+                            ],
+                        }
+                    )
+
+                    for tool_call in msg.tool_calls:
+                        fn_name = tool_call.function.name
+                        fn = toolMap.get(fn_name)
+
+                        if fn is None:
+                            result = (
+                                f"Unknown tool '{fn_name}'. "
+                                f"Available: {', '.join(toolMap)}"
+                            )
+                        else:
+                            try:
+                                args = json.loads(tool_call.function.arguments or "{}")
+                                if not isinstance(args, dict):
+                                    args = {}
+                            except Exception:
+                                args = {}
+                                result = (
+                                    f"Tool '{fn_name}' got invalid JSON arguments."
+                                )
+                            else:
+                                result = safe_call(
+                                    fn,
+                                    **args,
+                                    error_prefix=f"Tool '{fn_name}' failed",
+                                )
+
+                        chat.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": tool_call.id,
+                                "content": str(result),
+                            }
+                        )
+
+                    followup = client.chat.completions.create(
+                        model=current_model,
+                        messages=chat,
+                        tools=toolSchemas,
+                    )
+                    final_text = followup.choices[0].message.content or "Done."
+                    chat.append({"role": "assistant", "content": final_text})
+                    return final_text
+
+                text = msg.content or ""
+                chat.append({"role": "assistant", "content": text})
+                return text
+
+            except openai.RateLimitError as error:
+                last_error = error
+                time.sleep(1.2 * (attempt + 1))
+            except openai.AuthenticationError as error:
+                return friendly_provider_error(
+                    error, current_model, getattr(client, "base_url", None)
+                )
+            except openai.NotFoundError as error:
+                last_error = error
+                break  # try fallback model if available
+            except Exception as error:
+                last_error = error
+                time.sleep(1.0 * (attempt + 1))
+
+    return friendly_provider_error(
+        last_error, MODEL, getattr(client, "base_url", None)
+    )
