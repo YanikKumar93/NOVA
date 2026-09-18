@@ -1,250 +1,211 @@
 # NOVA
-This is very much changed from the original nova which only used gemini-SDK. While we ARE using open-AI sdk instead of https requests like rushil said, it is because we dont need to design the dict parsing and json converting to dict part ourselves, since openAI sdk already does that, and it has the same freedom we were trying to achieve as plain https requests. basically it has the same functionality just a little easier to build/teach
 
-The main idea is simple: the assistant should not be locked to one AI company. NOVA uses one client shape and one tool-calling flow, so you can switch between OpenAI-compatible providers by changing the API key, base URL, and model in `.env`.
+NOVA is a provider-independent desktop assistant. It combines an OpenAI-compatible chat model with ordinary Python tools. The model interprets natural-language requests and chooses tools; the tools perform the actual work.
 
-NOVA can currently:
+NOVA has two interfaces:
 
-- Hold a conversation in the terminal.
-- Answer normally through a chat model.
-- Search the web and open Google results in the browser.
-- Search YouTube and open the results in the browser.
-- Ask Tavily for a short search summary when a Tavily key is configured.
-- Use the same application code with OpenAI, Groq, Mistral, DeepSeek, Together AI, Fireworks, Cerebras, xAI (Grok), OpenRouter, and other providers that expose an OpenAI-compatible API.
+- `main.py`: terminal mode with TF-IDF routing for simple tool requests.
+- `app.py`: Streamlit chat interface with document upload and RAG support.
 
-File handling and weather support are planned placeholders. Their files exist, but those tools are not currently enabled in NOVA.
+## Features
 
-## The Important Idea: One Compatible Shape
-
-The project does not use separate Google, Mistral, Groq, or provider-specific SDKs in the assistant code. It uses the OpenAI Python client as a common interface and points that client at the provider selected in `.env`.
-
-The provider configuration is deliberately generic:
-
-```env
-OPENAI_API_KEY=your_provider_key
-OPENAI_BASE_URL=https://provider.example/v1
-NOVA_MODEL=the-model-name-you-want
-TAVILY_API_KEY=tavilykey (this is completely optional, i thought it would make our model a bit better since itll summarize websearches for us)
-```
-
-The variable is called `OPENAI_API_KEY` because that is the name expected by the OpenAI-compatible Python client. It can contain a key from the provider you are using; it does not mean the project is locked to OpenAI.
-
-### Supported provider configuration
-
-| Provider | `OPENAI_BASE_URL` example | Example model names |
-| --- | --- | --- |
-| OpenAI | `https://api.openai.com/v1` | `gpt-4o-mini`, `gpt-5` |
-| Groq | `https://api.groq.com/openai/v1` | Check Groq's current model list |
-| Mistral | `https://api.mistral.ai/v1` | `mistral-small-latest`, `mistral-large-latest` |
-| DeepSeek | `https://api.deepseek.com` | `deepseek-chat`, `deepseek-reasoner` |
-| Together AI | `https://api.together.xyz/v1` | Check Together's current model list |
-| Fireworks AI | `https://api.fireworks.ai/inference/v1` | Check Fireworks' current model list |
-| Cerebras | `https://api.cerebras.ai/v1` | Check Cerebras' current model list |
-| xAI / Grok | `https://api.x.ai/v1` | Check xAI's current model list |
-| OpenRouter | `https://openrouter.ai/api/v1` | Use an OpenRouter model ID | kinda reduntant since we have to pay for it, dont rlly use this one
-
-Provider model names and availability change. `openaimodelcheck.py` can be used to list the models visible to the configured key. this is not as helpful, since it lists ALL the models available, not the ones available to _just_ you with your free tier
+- OpenAI-compatible providers through one client interface.
+- Web, YouTube, and Wikipedia search.
+- File and folder operations.
+- Weather, news, and currency tools.
+- Persistent key-value memory.
+- PDF, PPTX, TXT, and Markdown document ingestion.
+- ChromaDB retrieval for questions about uploaded documents.
+- Optional classifier routing that avoids the model for predictable requests.
+- Optional provider/model fallback.
 
 ## Project Layout
 
 ```text
 .
-├── agent/
-│   ├── nova.py             Client setup, conversation loop, and tool calling
-│   ├── systemprompt.py     NOVA's personality and behavior instructions
-│   └── __init__.py
-├── tools/
-│   ├── toolSchema.py       Converts Python functions into tool schemas
-│   ├── webSearch.py        Web and YouTube browser/search tools
-│   └── __init__.py
-├── files.py                Placeholder for future file tools
-├── weather.py              Placeholder for future weather tools
-├── main.py                 Terminal entry point
-├── openaimodelcheck.py     Lists models from the configured provider
-├── env.example             Safe environment-variable template
-├── requirements.txt        Python dependencies
-└── .gitignore              Keeps local secrets and generated files out of Git
+|-- main.py                  Terminal entry point and direct classifier routing
+|-- app.py                   Streamlit entry point
+|-- requirements.txt         Python dependencies
+|-- .env.example             Environment-variable template
+|-- agent/
+|   |-- nova.py              Client, conversation loop, tool calling, fallback
+|   |-- fallback.py          Safe tool calls and provider error helpers
+|   |-- pipeline.py          RAG request preparation for Streamlit
+|   |-- systemprompt.py      NOVA behavior and personality prompt
+|   `-- __init__.py
+|-- tools/
+|   |-- toolSchema.py        Converts Python functions to model tool schemas
+|   |-- webSearch.py         Web, YouTube, and Wikipedia tools
+|   |-- files.py             File and folder tools
+|   |-- weather.py           Weather API tool
+|   |-- news.py              News API tool
+|   |-- currency.py          Currency conversion tool
+|   |-- client.py            Shared HTTP helper
+|   |-- classifier.py        TF-IDF classifier loader and predictor
+|   |-- memory.py            Persistent user memory
+|   |-- rag.py               Document extraction, chunking, and retrieval
+|   `-- model/               Trained classifier and vectorizer artifacts
+|-- dev_utils/
+|   |-- openaimodelcheck.py  Lists models exposed by the configured provider
+|   `-- test_tools.py        Development checks for tools
+|-- chroma_db/               Local ChromaDB data, generated at runtime
+|-- temp_uploads/            Uploaded documents, generated at runtime
+|-- nova_memory.json         Local memory file, generated at runtime
+`-- NOVA_Work_Division.md    Historical team work notes
 ```
 
-## How the Request Works
+`chroma_db/`, `temp_uploads/`, `nova_memory.json`, `.env`, and Python cache files are local state. They should not be committed. Existing local files are left in place so uploaded study material is not accidentally deleted.
 
-The runtime flow is intentionally manual and easy to follow:
+## Setup
 
-1. `main.py` loads `.env` and creates a fresh conversation.
-2. `createNova()` adds the system prompt as the first message.
-3. The user enters a message in the terminal.
-4. `askNova()` sends the conversation, model name, and generated tool schemas to the provider.
-5. If the model answers normally, NOVA prints the response.
-6. If the model requests a tool, NOVA finds the matching Python function in `toolMap` and runs it.
-7. The tool result is added to the conversation.
-8. NOVA makes one intentional follow-up request so the model can explain what the tool did.
+Use Python 3.12, which is the version used to develop and test this project.
 
-The conversation is stored in the `chat` list while the program is running. It is not saved to a database or file, so closing the program clears the conversation.
-
-## Tool Schemas
-
-The model cannot automatically understand an arbitrary Python function. `tools/toolSchema.py` inspects each function's type hints and docstring and converts it into the JSON schema expected by OpenAI-compatible APIs. (this part was done by AI since i couldnt understand shit)
-
-That lets tools stay as ordinary Python functions:
-
-```python
-def searchWeb(query: str) -> str:
-    ...
-```
-
-NOVA turns that into a function tool with a required string argument named `query`. The tool's first docstring line becomes its description, and its `Args:` section supplies the argument description.
-
-To enable a new tool:
-### JO BHI LOG TOOL BNARE HO PLS YE PDHLO
-1. Write the Python function with type hints and a useful docstring.
-2. Import it in `agent/nova.py`.
-3. Add it to `toolBox`.
-4. Start NOVA again.
-
-The existing file and weather modules are not enabled yet because they are still placeholders.
-
-## Installation
-
-### Requirements
-
-- I BUILD IT ON PYTHON 3.12, PLS EVERYONE FOLLOW THAT AS I FOUND IT MOST STABLE IF WE HAVE TO INCLUDE CNN IN NEAR FUTURE
-- A provider API key with access to a chat model.
-- Internet access for the model request and web tools.
-
-### 1. Clone the repository
-
-i assume itna toh aata hoga
-
-### 2. Create a virtual environment
-vs code me bottom right me it tells u ur interpreter, from there u can decide to make a venv. 
-itll ask u to install dependancies, just install requirements.txt from there
-rushil, it should work with `uv` now as i tested it, and afaik no version conflict
-
-### 3. Install dependencies
-alr done, if not just run `pip install -r requirements.txt`
-### 4. Create `.env`
-
-Copy `env.example` to `.env`:
-`copy env.example .env`
-
-macOS/Linux:
-
-```bash
-cp env.example .env
-```
-
-Then edit `.env` with a real key and provider configuration. For example, with Mistral:
-
-```env
-OPENAI_API_KEY=your_mistral_key
-OPENAI_BASE_URL=https://api.mistral.ai/v1
-NOVA_MODEL=mistral-small-latest (use this model only)
-TAVILY_API_KEY=
-```
-
-For OpenAI, use:
-
-```env
-OPENAI_API_KEY=your_openai_key
-OPENAI_BASE_URL=https://api.openai.com/v1
-NOVA_MODEL=gpt-4o-mini (maybe this model is not available for free api tier, i couldnt get it to work)
-TAVILY_API_KEY=
-```
-
-Do not commit `.env`, paste keys into Python files, or share keys in screenshots or chat. `.gitignore` is configured to ignore local `.env` files.
-
-### 5. Run NOVA
+### Windows PowerShell
 
 ```powershell
-python main.py
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
 ```
 
-You should see:
+If PowerShell blocks activation, run this once in the current terminal:
 
-```text
-NOVA (terminal mode). Type 'quit' to exit.
-
-You:
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
 ```
 
-Type `quit` to leave the program.
+### macOS or Linux
 
-## Optional: Web Search Summaries
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
 
-The web tools always open the browser. If `TAVILY_API_KEY` is empty, NOVA still opens the search page but returns a message explaining that no spoken summary was generated.
-
-To enable summaries, add a Tavily key:
+Edit `.env` with a provider key and model. The key variable is named `OPENAI_API_KEY` because that is what the OpenAI-compatible Python client expects; it can contain a key from another compatible provider.
 
 ```env
-TAVILY_API_KEY=your_tavily_key
+OPENAI_API_KEY=your_key_here
+OPENAI_BASE_URL=https://api.groq.com/openai/v1
+NOVA_MODEL=your_model_name
+NOVA_FALLBACK_MODEL=
+TAVILY_API_KEY=
+OPENWEATHER_API_KEY=
+GNEWS_API_KEY=
+NOVA_CHROMA_PATH=./chroma_db
 ```
 
-Tavily is separate from the chat provider. This was a deliberate choice: provider-specific web-search features would make switching between model providers less portable. Tavily gives the project one ordinary REST API for search summaries regardless of which model answers the conversation.
+For real OpenAI, use `https://api.openai.com/v1`. For another provider, use that provider's documented OpenAI-compatible base URL and model name. Provider model names and availability change, so check the provider's current documentation.
 
-## Check Available Models
+## Running NOVA
+
+Terminal mode:
+
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
+
+Streamlit mode:
+
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+The terminal classifier can directly route high-confidence requests such as weather, news, currency, file, and search requests. Ambiguous requests are sent to the AI agent. Streamlit uses the agent for conversation and prepares document questions through `agent/pipeline.py`.
+
+## Request Flow
+
+### Terminal mode
+
+1. `main.py` loads the trained TF-IDF vectorizer and classifier.
+2. The classifier returns a tool label or `LLM`/unknown intent.
+3. Simple requests are parsed by `directArguments()` and call a tool directly.
+4. Ambiguous requests call `askNova()`.
+
+### Agent mode
+
+1. `createNova()` creates a message list containing the system prompt and saved memory.
+2. `askNova()` sends the conversation and `toolSchemas` to the configured model.
+3. The model may return one or more tool calls.
+4. `toolMap` resolves each function name to a Python function.
+5. The function result is added to the conversation.
+6. A follow-up model request turns the result into a user-facing answer.
+
+## How To Add A Tool
+
+1. Add a normal Python function under `tools/`.
+2. Give it type hints and a useful docstring.
+3. Put the description on the first docstring line.
+4. Describe parameters in an `Args:` section.
+5. Make the function return a readable string and handle expected errors itself.
+6. Import it in `agent/nova.py`.
+7. Add it to `toolBox`.
+8. If the tool should be callable without the AI, add its classifier label and argument parsing to `main.py`.
+9. Run the checks below.
+
+Example:
+
+```python
+def greet(name: str) -> str:
+    """Greet a user by name."""
+    return f"Hello, {name}."
+```
+
+`tools/toolSchema.py` converts the function signature and docstring into the schema sent to the model. Do not manually duplicate the schema in `nova.py`.
+
+## How To Change Existing Behavior
+
+- Personality and response style: edit `agent/systemprompt.py`.
+- Model/provider behavior: edit environment variables first; edit `agent/nova.py` only for shared request behavior.
+- Tool registration: edit `toolBox` in `agent/nova.py`.
+- Direct terminal routing: edit the classifier artifacts or `main.py`.
+- RAG intent detection and context preparation: edit `agent/pipeline.py`.
+- Document extraction, chunking, or retrieval: edit `tools/rag.py`.
+- Memory storage format: edit `tools/memory.py`. Existing `nova_memory.json` may need migration if its format changes.
+- Streamlit layout and upload workflow: edit `app.py`.
+- Dependencies: update `requirements.txt`, then reinstall them in the active virtual environment.
+
+Keep provider calls, tool registration, and UI code separate. A tool should remain usable directly from Python even when no AI model is configured.
+
+## Validation
+
+Run these commands from the project root:
+
+```powershell
+.\.venv\Scripts\python.exe -m compileall -q agent tools app.py main.py
+.\.venv\Scripts\python.exe dev_utils\test_tools.py
+.\.venv\Scripts\python.exe -m pip check
+```
+
+Before committing, also check:
+
+```powershell
+git status
+git diff --check
+```
+
+Do not commit API keys, `.env`, uploaded documents, ChromaDB files, memory files, or generated caches. Do not commit unresolved conflict markers.
+
+## Model List Helper
 
 With `.env` configured, run:
 
 ```powershell
-python openaimodelcheck.py
+.\.venv\Scripts\python.exe dev_utils\openaimodelcheck.py
 ```
 
-This calls the configured provider's model-list endpoint and prints the model IDs visible to that key. Choose one of those IDs for `NOVA_MODEL`.
+This lists models visible to the configured provider. It does not guarantee that every listed model is enabled for inference or available under a free tier.
 
-## Problems We Ran Into
+## Troubleshooting
 
-### Moving away from the Google SDK
-
-The earlier approach used a Google-specific SDK. That made the project harder to move between providers and tied the tool behavior to one vendor's conventions. NOVA was moved to the OpenAI-compatible Chat Completions shape instead.
-
-meri halat tight hogyi switching me, i should not have taken it as a one day endeavor when idk shit abt openAI sdk
-
-The tradeoff is that tool schemas now have to be generated manually. That is what `functionToToolSchema()` handles.
-
-### An empty base URL caused connection errors
-
-An `.env` line like this looks harmless:
-
-```env
-OPENAI_BASE_URL=
-```
-
-With the installed SDK, an empty value can override the SDK's default URL and produce a connection error about a missing `http://` or `https://` protocol. NOVA now removes an empty base URL and lets the client use its default endpoint. For a custom provider, the URL must be complete and include `https://`.
-
-### Provider rate limits looked like a code failure
-
-The OpenAI-compatible client maps a provider's HTTP 429 response to `RateLimitError`, even when the provider is Mistral, Groq, or another service. NOVA originally displayed that as an OpenAI-style usage-limit message, which made the diagnosis confusing.
-
-The message now says which provider rate-limited the request. A newly created key can still have a zero request limit if its workspace, billing, verification, or provider account is restricted. Listing models can work while chat inference is rate-limited.
-
-
-### Hidden retries could repeat requests
-
-The OpenAI Python client has its own automatic retry behavior. NOVA also had an explicit retry loop. That made it difficult to tell how many requests one input could create. SDK retries are now disabled with `max_retries=0`, and NOVA defaults to one attempt per user message.
-
-The only normal two-request flow is intentional tool use: one request to choose a tool and one request to produce the final answer after the tool runs.
-
-## Editing NOVA's Personality
-
-The assistant's personality is in `agent/systemprompt.py`. You can make it more direct, more chatty, or more formal without changing the core request and tool-calling code.
-
-The important rule is to keep the tool instructions intact. If the prompt says the assistant should use a tool when the user asks it to perform an action, the model is more likely to call the correct function instead of merely describing what it could do.
-
-## Current Limitations
-
-- The interface is terminal-only.
-- Conversation history disappears when the process exits.
-- Only web and YouTube search tools are active.
-- Browser searches depend on the machine's default browser.
-- Tavily summaries require a separate key.
-- Provider model names, quotas, and rate limits are controlled by each provider.
-- The project assumes the selected provider supports the OpenAI-compatible Chat Completions and function-tool format.
-
-## A Note for Contributors
-
-Keep provider-specific setup in environment variables and keep the Python request path provider-neutral. When adding a tool, use a typed function and a clear docstring so the schema generator can describe it to the model.
-
-The project is intentionally readable rather than over-engineered. Some comments are informal because this was built while learning and debugging the system. They document real decisions: why the provider interface was changed, why Tavily is separate, why tool arguments are decoded with JSON, and why the client retry behavior is controlled explicitly.
-
-## License
-MIT license
+- Missing `OPENAI_API_KEY`: copy `.env.example` to `.env` and add a provider key.
+- Model not found: set `NOVA_MODEL` to a model available from the configured provider.
+- Provider connection error: check that `OPENAI_BASE_URL` is either blank or a complete URL beginning with `https://`.
+- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`.
+- RAG import or embedding errors: reinstall `requirements.txt`; the first embedding use may download a sentence-transformers model.
+- Classifier loading errors: use the same Python environment that installed `joblib` and `scikit-learn`.
+- Stale document results: remove the local `chroma_db/` directory and re-upload the documents. This clears only the local vector index.
