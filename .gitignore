@@ -219,10 +219,15 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-#extrafiles
+# NOVA local configuration and generated data
 .env
 .env.*
 !.env.example
-websearchOLDWORKING.py
 .openaikey.txt
 nova_memory.json
+chroma_db/
+temp_uploads/
+test.txt
+
+# Legacy local implementation
+websearchOLDWORKING.py
