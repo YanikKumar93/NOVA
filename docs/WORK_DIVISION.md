@@ -21,10 +21,12 @@ AI Desktop Assistant • Current responsibilities and what's left to build.
 * Tool selection and tool calling — ongoing, will be done when all tools sab log update krde
 * Tool schema generation from plain Python functions — done claude bharose
 * Multi-step tool chaining - testing ni hui yet
-* Conversation/context handling — done, it can hold a small conversation. though the model is still memoryless \[h(t) = 0 for t!]
+* Conversation/context handling — done, it can hold a small conversation. though the model is still memoryless \[h(t) = 0 for t!] NOT MEMORY LESS ANYMORE THANKS TO PARI
 * Tool/function interface definition — aksharrs PR raised an issue, looking into it
 * Testing with mock tools — done
-
+* p4 PR was messy and had a lot of code issues, fixed it and committed
+* updated readme with more info
+* a new commit had messed with nova.py functionality, weather tools and systemprompt. all fixed now
 ## Anukriti — System \& File Tools
 
 update jo bhi kara ho

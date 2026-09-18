@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from tools.client import get_json
+from tools.webSearch import searchWeb
 
 load_dotenv()
 
@@ -19,7 +20,10 @@ def get_weather(city: str) -> str:
 
     apiKey = os.getenv("OPENWEATHER_API_KEY")
     if not apiKey:
-        return "Weather isn't set up yet — the API key is missing."
+        return searchWeb(
+            f"current weather in {city.strip()}",
+            openInBrowser=True,
+        )
 
     params = {"q": city.strip(), "appid": apiKey, "units": "metric"}
     data, error = get_json(URL, params)

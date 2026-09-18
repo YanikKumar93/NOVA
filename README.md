@@ -27,6 +27,8 @@ NOVA has two interfaces:
 |-- app.py                   Streamlit entry point
 |-- requirements.txt         Python dependencies
 |-- .env.example             Environment-variable template
+|-- docs/
+|   `-- WORK_DIVISION.md     Historical team responsibilities and notes
 |-- agent/
 |   |-- nova.py              Client, conversation loop, tool calling, fallback
 |   |-- fallback.py          Safe tool calls and provider error helpers
@@ -51,10 +53,11 @@ NOVA has two interfaces:
 |-- chroma_db/               Local ChromaDB data, generated at runtime
 |-- temp_uploads/            Uploaded documents, generated at runtime
 |-- nova_memory.json         Local memory file, generated at runtime
-`-- NOVA_Work_Division.md    Historical team work notes
 ```
 
 `chroma_db/`, `temp_uploads/`, `nova_memory.json`, `.env`, and Python cache files are local state. They should not be committed. Existing local files are left in place so uploaded study material is not accidentally deleted.
+
+There is one environment template at the project root: `.env.example`. Copy it to `.env` for local use. The `dev_utils/` directory contains scripts only; it does not contain a second configuration template.
 
 ## Setup
 
@@ -205,7 +208,7 @@ This lists models visible to the configured provider. It does not guarantee that
 - Missing `OPENAI_API_KEY`: copy `.env.example` to `.env` and add a provider key.
 - Model not found: set `NOVA_MODEL` to a model available from the configured provider.
 - Provider connection error: check that `OPENAI_BASE_URL` is either blank or a complete URL beginning with `https://`.
-- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`.
+- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`. Weather falls back to Google/Tavily search when the OpenWeather key is blank.
 - RAG import or embedding errors: reinstall `requirements.txt`; the first embedding use may download a sentence-transformers model.
 - Classifier loading errors: use the same Python environment that installed `joblib` and `scikit-learn`.
 - Stale document results: remove the local `chroma_db/` directory and re-upload the documents. This clears only the local vector index.
