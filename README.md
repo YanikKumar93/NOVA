@@ -31,6 +31,7 @@ NOVA has two interfaces:
 |   `-- WORK_DIVISION.md     Historical team responsibilities and notes
 |-- agent/
 |   |-- nova.py              Client, conversation loop, tool calling, fallback
+|   |-- router.py            Shared classifier and direct-tool routing
 |   |-- fallback.py          Safe tool calls and provider error helpers
 |   |-- pipeline.py          RAG request preparation for Streamlit
 |   |-- systemprompt.py      NOVA behavior and personality prompt
@@ -118,16 +119,19 @@ Streamlit mode:
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-The terminal classifier can directly route high-confidence requests such as weather, news, currency, file, and search requests. Ambiguous requests are sent to the AI agent. Streamlit uses the agent for conversation and prepares document questions through `agent/pipeline.py`.
+Both interfaces use `agent/router.py`. High-confidence requests such as weather, news, currency, file, and search requests call basic Python tools directly. Ambiguous requests go to the AI agent. Document questions are prepared through `agent/pipeline.py` and then sent to the AI with retrieved context.
 
 ## Request Flow
 
-### Terminal mode
+### Shared routing
 
-1. `main.py` loads the trained TF-IDF vectorizer and classifier.
+1. `agent/router.py` loads the trained TF-IDF vectorizer and classifier.
 2. The classifier returns a tool label or `LLM`/unknown intent.
 3. Simple requests are parsed by `directArguments()` and call a tool directly.
-4. Ambiguous requests call `askNova()`.
+4. Direct tool results are added to the conversation history.
+5. Ambiguous requests call `askNova()`.
+
+`main.py` and `app.py` both call `routeRequest()`, so their behavior stays consistent.
 
 ### Agent mode
 
@@ -165,7 +169,7 @@ def greet(name: str) -> str:
 - Personality and response style: edit `agent/systemprompt.py`.
 - Model/provider behavior: edit environment variables first; edit `agent/nova.py` only for shared request behavior.
 - Tool registration: edit `toolBox` in `agent/nova.py`.
-- Direct terminal routing: edit the classifier artifacts or `main.py`.
+- Direct routing: edit the classifier artifacts or `agent/router.py`.
 - RAG intent detection and context preparation: edit `agent/pipeline.py`.
 - Document extraction, chunking, or retrieval: edit `tools/rag.py`.
 - Memory storage format: edit `tools/memory.py`. Existing `nova_memory.json` may need migration if its format changes.

@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from agent.nova import askNova, createNova
-from agent.pipeline import prepareMessage
+from agent.nova import createNova
+from agent.router import routeRequest
 from tools.rag import ingest_document
 
 st.set_page_config(page_title="NOVA Agentic AI", page_icon="N", layout="centered")
@@ -25,7 +25,7 @@ def startChat() -> None:
 
 
 st.title("NOVA Desktop & Study Agent")
-st.caption("Voice-controlled assistant with RAG Study Material Tutor")
+st.caption("yaha kuch toh daalna hai uwu")
 
 with st.sidebar:
     st.subheader("Upload Study Material")
@@ -75,8 +75,7 @@ if user_message:
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
-                prepared = prepareMessage(user_message)
-                response = askNova(st.session_state.chat, prepared)
+                response = routeRequest(user_message, st.session_state.chat)
                 if not response or not str(response).strip():
                     response = "I couldn't generate a reply just now. Please try again."
                 st.markdown(response)
