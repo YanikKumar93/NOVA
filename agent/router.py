@@ -10,6 +10,27 @@ from tools.classifier import IntentClassifier
 
 classifier = IntentClassifier()
 
+# these simple queries (DIRECT_TOOLS) are going to get executed directly. anything that
+# can be even thoda sa complex is very fragile with regex. its just better to send it directly to the llm.
+# the job of the classifier is to CLASSIFY. not parse multiparamter queries.
+
+# just send it to gemini.
+
+# peace
+
+DIRECT_TOOLS = {
+    "get_weather",
+    "get_news",
+    "convert_currency",
+    "create_folder",
+    "read_file",
+    "searchWeb",
+    "searchWikipedia",
+    "searchYoutube",
+    "recall_memory",
+    "forget_memory",
+}
+
 
 def hasApiKeyFor(intent: str) -> bool:
     if intent == "get_weather":
@@ -17,9 +38,6 @@ def hasApiKeyFor(intent: str) -> bool:
     if intent == "get_news":
         return bool(os.getenv("GNEWS_API_KEY"))
     return True
-
-#weather nd news requests would randomly get called on any question asked if an initial weather question couldnt be answered due to absent API key
-#i really dont get why it did that, but it did and now its fixed
 
 
 def directArguments(intent: str, text: str) -> tuple:
@@ -37,22 +55,29 @@ def directArguments(intent: str, text: str) -> tuple:
             text,
         )
         if not match:
-            raise ValueError("Use a format such as: convert 100 USD to EUR")
+            raise ValueError("Could not parse currency conversion query")
         return (float(match.group(1)), match.group(2), match.group(3))
 
-    if intent in {"create_file", "create_folder", "read_file"}:
+    if intent in {"create_folder", "read_file"}:
         match = re.search(r"(?:named|called)\s+([\w.\\/-]+)", text, re.I)
         if not match:
-            match = re.search(r"(?:file|folder)\s+([\w.\\/-]+)", text, re.I)
+            match = re.search(r"(?:file|folder|directory)\s+([\w.\\/-]+)", text, re.I)
         if not match:
-            raise ValueError("I could not find a file or folder name")
+            raise ValueError(f"Could not find a target name for {intent}")
         return (match.group(1),)
+
+    if intent == "forget_memory":
+        match = re.search(r"(?:forget|delete|remove|erase)\s+(?:memory\s+for\s+|about\s+|that\s+)?([\w\s]+)", text, re.I)
+        return (match.group(1).strip() if match else text,)
+
+    if intent == "recall_memory":
+        match = re.search(r"(?:recall|remember|know|check)\s+(?:about\s+|for\s+)?([\w\s]+)", text, re.I)
+        return (match.group(1).strip() if match else "",)
 
     return (text,)
 
 
 def routeRequest(message: str, chat: list) -> str:
-    #self explanatory
     intent, confidence = classifier.predict(message)
 
     if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
@@ -64,7 +89,7 @@ def routeRequest(message: str, chat: list) -> str:
         )
         return askNova(chat, fallbackMessage)
 
-    if intent in toolMap and intent != "LLM":
+    if intent in DIRECT_TOOLS and intent in toolMap:
         try:
             arguments = directArguments(intent, message)
             result = str(toolMap[intent](*arguments))
@@ -75,5 +100,8 @@ def routeRequest(message: str, chat: list) -> str:
         except Exception:
             logRouteDecision(intent, confidence, "agent", tool=intent, reason="system_tool_failed")
 
-    logRouteDecision(intent, confidence, "agent", reason="no_matching_system_tool")
+    # fallback if regex fails 
+    logRouteDecision(intent, confidence, "agent", reason="routed_to_agent")
+
     return askNova(chat, message)
+
