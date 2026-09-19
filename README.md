@@ -106,7 +106,7 @@ NOVA_CHROMA_PATH=./chroma_db
 For real OpenAI, use `https://api.openai.com/v1`. For another provider, use that provider's documented OpenAI-compatible base URL and model name. Provider model names and availability change, so check the provider's current documentation.
 
 ## Running NOVA
-
+l
 Terminal mode:
 
 ```powershell
