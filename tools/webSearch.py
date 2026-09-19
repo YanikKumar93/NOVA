@@ -164,7 +164,7 @@ def _openBrowser(url: str) -> bool:
 
 # ------------------------------------------------------------- tavily call
 
-def _tavilySummary(query: str, domains=None):
+def _tavilySummary(query: str):
     """Ask Tavily for a short answer. Returns (ok, text)."""
     apiKey = (os.environ.get("TAVILY_API_KEY") or "").strip()
     if not apiKey:
@@ -179,8 +179,6 @@ def _tavilySummary(query: str, domains=None):
         "include_answer": True,
         "search_depth": "basic",
     }
-    if domains:
-        payload["include_domains"] = domains
     headers = {
         "Authorization": f"Bearer {apiKey}",
         "Content-Type": "application/json",
@@ -305,7 +303,7 @@ def searchYoutube(query: str) -> str:
 
 
 def searchWikipedia(query: str) -> str:
-    """Look up Wikipedia and return a Tavily summary or the page text as a fallback.
+    """Look up a factual summary from Wikipedia and return it as text without opening a browser.
 
     Args:
         query: The topic, person or thing to look up on Wikipedia.
@@ -360,18 +358,7 @@ def searchWikipedia(query: str) -> str:
         if not extract:
             return f"I found a Wikipedia page called '{title}', but it has no summary text."
 
-        pageUrl = page.get("fullurl") or (
-            "https://en.wikipedia.org/wiki/"
-            + urllib.parse.quote(title.replace(" ", "_"), safe=":/()")
-        )
-        tavilyOk, tavilyText = _tavilySummary(
-            f"Summarize this Wikipedia page: {title} ({pageUrl})",
-            domains=["en.wikipedia.org"],
-        )
-        if tavilyOk:
-            result = f"From Wikipedia ({title}), summarized by Tavily: {tavilyText}"
-        else:
-            result = f"From Wikipedia ({title}): {extract}"
+        result = f"From Wikipedia ({title}): {extract}"
         _cacheSet(cacheKey, result)
         return result
 
