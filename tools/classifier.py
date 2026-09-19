@@ -34,11 +34,27 @@ class IntentClassifier:
             )
         )
 
+    @staticmethod
+    def isGeneratedFileRequest(text: str) -> bool:
+        """Return whether a file request also asks NOVA to generate its text."""
+        normalized = text.lower()
+        has_file_request = bool(re.search(r"\bfile\b", normalized))
+        has_content_action = bool(
+            re.search(r"\b(?:write|writing|draft|generate|create|add|put|include)\b", normalized)
+        )
+        has_text_content = bool(
+            re.search(r"\b(?:text|content|paragraph|sentence|writing)\b", normalized)
+        )
+        return has_file_request and has_content_action and has_text_content
+
     def predict(self, text: str) -> Tuple[Optional[str], float]:
         if not text or not text.strip():
             return None, 0.0
 
         if self.isGreeting(text):
+            return "LLM", 1.0
+
+        if self.isGeneratedFileRequest(text):
             return "LLM", 1.0
 
         X = self.vectorizer.transform([text])
