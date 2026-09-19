@@ -45,7 +45,12 @@ class IntentClassifier:
         has_text_content = bool(
             re.search(r"\b(?:text|content|paragraph|sentence|writing)\b", normalized)
         )
-        return has_file_request and has_content_action and has_text_content
+        has_file_destination = bool(
+            re.search(r"\b(?:inside|in|into|to)\s+(?:it|the\s+file|that\s+file)\b", normalized)
+        )
+        return has_file_request and has_content_action and (
+            has_text_content or has_file_destination
+        )
 
     def predict(self, text: str) -> Tuple[Optional[str], float]:
         if not text or not text.strip():
