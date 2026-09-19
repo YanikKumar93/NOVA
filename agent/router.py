@@ -4,7 +4,6 @@ import os
 import re
 
 from agent.nova import askNova, toolMap
-from agent.pipeline import classifyIntent, prepareMessage
 from agent.routing_log import logRouteDecision
 from tools.classifier import IntentClassifier
 
@@ -66,10 +65,6 @@ def directArguments(intent: str, text: str) -> tuple:
 def routeRequest(message: str, chat: list) -> str:
     #self explanatory
     intent, confidence = classifier.predict(message)
-
-    if classifyIntent(message) == "study_material_rag":
-        logRouteDecision(intent, confidence, "agent", reason="study_material_rag")
-        return askNova(chat, prepareMessage(message))
 
     if isMemoryRequest(message):
         logRouteDecision(intent, confidence, "agent", reason="memory_request")

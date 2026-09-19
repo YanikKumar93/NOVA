@@ -13,9 +13,26 @@ socket.setdefaulttimeout(120.0)
 
 CHROMA_DATA_PATH = os.environ.get("NOVA_CHROMA_PATH", "./chroma_db")
 COLLECTION_NAME = "nova_documents"
+_ACTIVE_DOC_PATH = os.path.join(CHROMA_DATA_PATH, "_active_doc.txt")
 
 _client = None
 _collection = None
+
+
+def set_active_document(filename: str) -> None:
+    """Mark this filename as the currently active document for ask_document()."""
+    os.makedirs(CHROMA_DATA_PATH, exist_ok=True)
+    with open(_ACTIVE_DOC_PATH, "w", encoding="utf-8") as f:
+        f.write(filename)
+
+
+def get_active_document() -> str:
+    """Return the filename of the currently active document, or '' if none."""
+    try:
+        with open(_ACTIVE_DOC_PATH, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return ""
 
 
 def _get_collection():
@@ -155,13 +172,13 @@ def ingest_document(file_path: str, semester: str = "", subject: str = "") -> st
     try:
         collection = _get_collection()
         collection.upsert(documents=chunks, ids=ids, metadatas=metadatas)
+        set_active_document(filename)
         return (
             f"Successfully processed '{filename}' into {len(chunks)} chunks "
             "in vector store."
         )
     except Exception as error:
         return f"Failed to store embeddings for '{filename}': {error}"
-
 
 def ask_document(question: str) -> str:
     """Search uploaded study materials and return relevant context.
@@ -171,6 +188,13 @@ def ask_document(question: str) -> str:
     """
     if not question or not str(question).strip():
         return "Please ask a specific question about the document."
+
+    active_file = get_active_document()
+    if not active_file:
+        return (
+            "FALLBACK:NO_DOCS | No documents have been uploaded yet. "
+            "Please upload a PPTX/PDF/TXT file first from the sidebar."
+        )
 
     try:
         collection = _get_collection()
@@ -183,7 +207,8 @@ def ask_document(question: str) -> str:
 
         results = collection.query(
             query_texts=[question],
-            n_results=min(3, count),
+            n_results=3,
+            where={"filename": active_file},
         )
         docs = (results.get("documents") or [[]])[0]
         metas = (results.get("metadatas") or [[]])[0]

@@ -10,6 +10,10 @@ from agent.routing_log import latestRouteDecision
 from tools.rag import ingest_document
 
 st.set_page_config(page_title="NOVA Agentic AI", page_icon="N", layout="centered")
+if "session_initialized" not in st.session_state:
+    from tools.rag import set_active_document
+    set_active_document("")
+    st.session_state.session_initialized = True
 
 
 def visibleMessages(chat: list) -> list:
