@@ -77,7 +77,12 @@ def routeRequest(message: str, chat: list) -> str:
 
     if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
         logRouteDecision(intent, confidence, "agent", reason="api_key_missing")
-        return askNova(chat, message)
+        fallbackMessage = (
+            f"{message}\n\n"
+            f"The {intent} API key is unavailable. Do not call {intent}; "
+            "use the searchWeb tool to answer this request instead."
+        )
+        return askNova(chat, fallbackMessage)
 
     if intent in toolMap and intent != "LLM":
         try:

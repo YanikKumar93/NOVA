@@ -38,3 +38,14 @@ def logRouteDecision(
             logFile.write(json.dumps(record) + "\n")
     except OSError:
           pass
+
+
+def latestRouteDecision() -> dict:
+    """Return the most recent routing decision for the Streamlit status panel."""
+    try:
+        if not LOG_PATH.exists():
+            return {}
+        lines = LOG_PATH.read_text(encoding="utf-8").splitlines()
+        return json.loads(lines[-1]) if lines else {}
+    except (OSError, json.JSONDecodeError):
+        return {}

@@ -6,6 +6,7 @@ load_dotenv()
 
 from agent.nova import createNova
 from agent.router import routeRequest
+from agent.routing_log import latestRouteDecision
 from tools.rag import ingest_document
 
 st.set_page_config(page_title="NOVA Agentic AI", page_icon="N", layout="centered")
@@ -51,10 +52,14 @@ with st.sidebar:
                     st.error(f"Upload failed: {error}")
 
     st.divider()
-    st.subheader("Session")
-    if st.button("New conversation", use_container_width=True):
-        st.session_state.pop("chat", None)
-        st.rerun()
+    st.subheader("Last route")
+    lastRoute = st.session_state.get("last_route", {})
+    if lastRoute.get("route") == "system_tool" and lastRoute.get("tool"):
+        st.write(f"System tool: `{lastRoute['tool']}`")
+    elif lastRoute.get("route") == "agent":
+        st.write("NOVA agent")
+    else:
+        st.write("No request yet")
 
 try:
     startChat()
@@ -76,6 +81,7 @@ if user_message:
         with st.spinner("Thinking..."):
             try:
                 response = routeRequest(user_message, st.session_state.chat)
+                st.session_state.last_route = latestRouteDecision()
                 if not response or not str(response).strip():
                     response = "I couldn't generate a reply just now. Please try again."
                 st.markdown(response)
