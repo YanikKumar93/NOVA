@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from tools.client import get_json
+from tools.memory import save_memory
 
 load_dotenv()
 
@@ -17,11 +18,13 @@ def get_weather(city: str) -> str:
     if not city or not city.strip():
         return "I need a city name to check the weather."
 
+    city = city.strip()
+    save_memory("city", city)
     apiKey = os.getenv("OPENWEATHER_API_KEY")
     if not apiKey:
-        return "Weather isn't set up yet — the API key is missing."
+        return "Weather is unavailable because OPENWEATHER_API_KEY is not configured."
 
-    params = {"q": city.strip(), "appid": apiKey, "units": "metric"}
+    params = {"q": city, "appid": apiKey, "units": "metric"}
     data, error = get_json(URL, params)
 
     if error:

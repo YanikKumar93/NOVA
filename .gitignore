@@ -2,6 +2,7 @@
 __pycache__/
 *.py[codz]
 *$py.class
+logs/
 
 # C extensions
 *.so
@@ -228,6 +229,5 @@ nova_memory.json
 chroma_db/
 temp_uploads/
 test.txt
-
-# Legacy local implementation
-websearchOLDWORKING.py
+stufftofix.txt
+teaching_workflow.md

@@ -27,8 +27,11 @@ NOVA has two interfaces:
 |-- app.py                   Streamlit entry point
 |-- requirements.txt         Python dependencies
 |-- .env.example             Environment-variable template
+|-- docs/
+|   `-- WORK_DIVISION.md     Historical team responsibilities and notes
 |-- agent/
 |   |-- nova.py              Client, conversation loop, tool calling, fallback
+|   |-- router.py            Shared classifier and direct-tool routing
 |   |-- fallback.py          Safe tool calls and provider error helpers
 |   |-- pipeline.py          RAG request preparation for Streamlit
 |   |-- systemprompt.py      NOVA behavior and personality prompt
@@ -51,10 +54,11 @@ NOVA has two interfaces:
 |-- chroma_db/               Local ChromaDB data, generated at runtime
 |-- temp_uploads/            Uploaded documents, generated at runtime
 |-- nova_memory.json         Local memory file, generated at runtime
-`-- NOVA_Work_Division.md    Historical team work notes
 ```
 
 `chroma_db/`, `temp_uploads/`, `nova_memory.json`, `.env`, and Python cache files are local state. They should not be committed. Existing local files are left in place so uploaded study material is not accidentally deleted.
+
+There is one environment template at the project root: `.env.example`. Copy it to `.env` for local use. The `dev_utils/` directory contains scripts only; it does not contain a second configuration template.
 
 ## Setup
 
@@ -115,16 +119,19 @@ Streamlit mode:
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-The terminal classifier can directly route high-confidence requests such as weather, news, currency, file, and search requests. Ambiguous requests are sent to the AI agent. Streamlit uses the agent for conversation and prepares document questions through `agent/pipeline.py`.
+Both interfaces use `agent/router.py`. High-confidence requests such as weather, news, currency, file, and search requests call basic Python tools directly. Ambiguous requests go to the AI agent. Document questions are prepared through `agent/pipeline.py` and then sent to the AI with retrieved context.
 
 ## Request Flow
 
-### Terminal mode
+### Shared routing
 
-1. `main.py` loads the trained TF-IDF vectorizer and classifier.
+1. `agent/router.py` loads the trained TF-IDF vectorizer and classifier.
 2. The classifier returns a tool label or `LLM`/unknown intent.
 3. Simple requests are parsed by `directArguments()` and call a tool directly.
-4. Ambiguous requests call `askNova()`.
+4. Direct tool results are added to the conversation history.
+5. Ambiguous requests call `askNova()`.
+
+`main.py` and `app.py` both call `routeRequest()`, so their behavior stays consistent.
 
 ### Agent mode
 
@@ -162,7 +169,7 @@ def greet(name: str) -> str:
 - Personality and response style: edit `agent/systemprompt.py`.
 - Model/provider behavior: edit environment variables first; edit `agent/nova.py` only for shared request behavior.
 - Tool registration: edit `toolBox` in `agent/nova.py`.
-- Direct terminal routing: edit the classifier artifacts or `main.py`.
+- Direct routing: edit the classifier artifacts or `agent/router.py`.
 - RAG intent detection and context preparation: edit `agent/pipeline.py`.
 - Document extraction, chunking, or retrieval: edit `tools/rag.py`.
 - Memory storage format: edit `tools/memory.py`. Existing `nova_memory.json` may need migration if its format changes.
@@ -205,7 +212,7 @@ This lists models visible to the configured provider. It does not guarantee that
 - Missing `OPENAI_API_KEY`: copy `.env.example` to `.env` and add a provider key.
 - Model not found: set `NOVA_MODEL` to a model available from the configured provider.
 - Provider connection error: check that `OPENAI_BASE_URL` is either blank or a complete URL beginning with `https://`.
-- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`.
+- Missing weather/news output: configure `OPENWEATHER_API_KEY` or `GNEWS_API_KEY`. When a key is missing, the router hands the request to NOVA instead of calling the unavailable system tool. The tools themselves do not open browser or search fallbacks.
 - RAG import or embedding errors: reinstall `requirements.txt`; the first embedding use may download a sentence-transformers model.
 - Classifier loading errors: use the same Python environment that installed `joblib` and `scikit-learn`.
 - Stale document results: remove the local `chroma_db/` directory and re-upload the documents. This clears only the local vector index.
