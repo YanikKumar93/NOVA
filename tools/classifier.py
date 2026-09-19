@@ -1,5 +1,4 @@
 from pathlib import Path
-import re
 from typing import Optional, Tuple
 import joblib
 
@@ -15,52 +14,9 @@ class IntentClassifier:
         self.vectorizer = joblib.load(model_dir / "vectorizer.joblib")
         self.clf = joblib.load(model_dir / "classifier.joblib")
 
-    @staticmethod
-    def isGreeting(text: str) -> bool:
-        normalized = " ".join(re.sub(r"[^a-z\s']", " ", text.lower()).split())
-        if normalized in {
-            "what's up",
-            "whats up",
-            "what is up",
-            "hey what's up",
-            "hey whats up",
-            "hey what is up",
-        }:
-            return True
-        return bool(
-            re.fullmatch(
-                r"(?:hey|hi|hello|hiya|yo|howdy)(?: nova)?(?:\s+(?:there|friend))?",
-                normalized,
-            )
-        )
-
-    @staticmethod
-    def isGeneratedFileRequest(text: str) -> bool:
-        """Return whether a file request also asks NOVA to generate its text."""
-        normalized = text.lower()
-        has_file_request = bool(re.search(r"\bfile\b", normalized))
-        has_content_action = bool(
-            re.search(r"\b(?:write|writing|draft|generate|create|add|put|include)\b", normalized)
-        )
-        has_text_content = bool(
-            re.search(r"\b(?:text|content|paragraph|sentence|writing)\b", normalized)
-        )
-        has_file_destination = bool(
-            re.search(r"\b(?:inside|in|into|to)\s+(?:it|the\s+file|that\s+file)\b", normalized)
-        )
-        return has_file_request and has_content_action and (
-            has_text_content or has_file_destination
-        )
-
     def predict(self, text: str) -> Tuple[Optional[str], float]:
         if not text or not text.strip():
             return None, 0.0
-
-        if self.isGreeting(text):
-            return "LLM", 1.0
-
-        if self.isGeneratedFileRequest(text):
-            return "LLM", 1.0
 
         X = self.vectorizer.transform([text])
         probs = self.clf.predict_proba(X)[0]

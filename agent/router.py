@@ -22,17 +22,6 @@ def hasApiKeyFor(intent: str) -> bool:
 #i really dont get why it did that, but it did and now its fixed
 
 
-def isMemoryRequest(text: str) -> bool:
-    """Memory language must be handled by NOVA's memory tools."""
-    return bool(
-        re.search(
-            r"\b(remember|memor(?:y|ise|ize)|forget|save\s+(?:this|that)|keep\s+in\s+mind)\b",
-            text,
-            re.I,
-        )
-    )
-
-
 def directArguments(intent: str, text: str) -> tuple:
     if intent == "get_weather":
         match = re.search(r"(?:weather|temperature)\s+(?:in|for)\s+(.+)", text, re.I)
@@ -65,10 +54,6 @@ def directArguments(intent: str, text: str) -> tuple:
 def routeRequest(message: str, chat: list) -> str:
     #self explanatory
     intent, confidence = classifier.predict(message)
-
-    if isMemoryRequest(message):
-        logRouteDecision(intent, confidence, "agent", reason="memory_request")
-        return askNova(chat, message)
 
     if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
         logRouteDecision(intent, confidence, "agent", reason="api_key_missing")
