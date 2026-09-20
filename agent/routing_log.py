@@ -1,23 +1,33 @@
 #decided to implement a log file to see what classifier is doing.
 """
 Json format is {
-  "classifier_intent": what tool is to be called,
+  "timestamp": "DD/MM HH:MM:SS +05:30",
+  "intent": what tool is to be called,
+  "message": the actual message user passed,
   "confidence": self explanatory, but it uses margin instead of strict confidence level,
-  "route": whether it used system or agent
-  "tool": the tool called
+  "route": whether it used system or agent,
+  "tool": the tool called,
+  "reason": fallback or failure reason
 }
 """
 
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
 LOG_PATH = Path("logs/routing.jsonl")
 
 
+def _gmt530_timestamp() -> str:
+    utc_now = datetime.now(timezone.utc)
+    ist = utc_now + timedelta(hours=5, minutes=30)
+    return ist.strftime("%d/%m %H:%M:%S +05:30")
+
+
 def logRouteDecision(
+    message: str,
     classifierIntent: str | None,
     confidence: float,
     route: str,
@@ -25,8 +35,9 @@ def logRouteDecision(
     reason: str | None = None,
 ) -> None:
     record = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "classifier_intent": classifierIntent,
+        "timestamp": _gmt530_timestamp(),
+        "intent": classifierIntent,
+        "message": message,
         "confidence": confidence,
         "route": route,
         "tool": tool,
@@ -37,11 +48,11 @@ def logRouteDecision(
         with LOG_PATH.open("a", encoding="utf-8") as logFile:
             logFile.write(json.dumps(record) + "\n")
     except OSError:
-          pass
+        pass
 
 
 def latestRouteDecision() -> dict:
-    """Return the most recent routing decision for the Streamlit status panel."""
+    #bc ye chal kyu nhi rha streamlit me
     try:
         if not LOG_PATH.exists():
             return {}

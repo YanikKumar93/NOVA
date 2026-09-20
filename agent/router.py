@@ -93,7 +93,7 @@ def routeRequest(message: str, chat: list) -> str:
     intent, confidence = classifier.predict(message)
 
     if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
-        logRouteDecision(intent, confidence, "agent", reason="api_key_missing")
+        logRouteDecision(message, intent, confidence, "agent", reason="api_key_missing")
         fallbackMessage = (
             f"{message}\n\n"
             f"The {intent} API key is unavailable. Do not call {intent}; "
@@ -105,15 +105,15 @@ def routeRequest(message: str, chat: list) -> str:
         try:
             arguments = directArguments(intent, message)
             result = str(toolMap[intent](*arguments))
-            logRouteDecision(intent, confidence, "system_tool", tool=intent)
+            logRouteDecision(message, intent, confidence, "system_tool", tool=intent)
             chat.append({"role": "user", "content": message})
             chat.append({"role": "assistant", "content": result})
             return result
         except Exception:
-            logRouteDecision(intent, confidence, "agent", tool=intent, reason="system_tool_failed")
+            logRouteDecision(message, intent, confidence, "agent", tool=intent, reason="system_tool_failed")
 
     # fallback if regex fails 
-    logRouteDecision(intent, confidence, "agent", reason="routed_to_agent")
+    logRouteDecision(message, intent, confidence, "agent", reason="routed_to_agent")
 
     return askNova(chat, message)
 
