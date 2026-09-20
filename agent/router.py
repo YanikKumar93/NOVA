@@ -49,6 +49,18 @@ def directArguments(intent: str, text: str) -> tuple:
         match = re.search(r"(?:news|headlines)\s+(?:about|on|for)\s+(.+)", text, re.I)
         return (match.group(1).strip() if match else "",)
 
+    if intent in {"searchWeb", "searchWikipedia", "searchYoutube"}:
+        if intent == "searchWeb":
+            match = re.search(r"(?:search(?:\s+(?:up|for|the|web))?\s+)?(?:for\s+)?(.+)", text, re.I)
+            return (match.group(1).strip() if match else text.strip(),)
+
+        if intent == "searchWikipedia":
+            match = re.search(r"(?:search(?:\s+(?:wiki|wikipedia))?(?:\s+(?:up|for))?\s+)?(.+)", text, re.I)
+            return (match.group(1).strip() if match else text.strip(),)
+
+        match = re.search(r"(?:search(?:\s+(?:youtube|video|videos))?(?:\s+(?:up|for))?\s+)?(.+)", text, re.I)
+        return (match.group(1).strip() if match else text.strip(),)
+
     if intent == "convert_currency":
         match = re.search(
             r"([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]{3})\s+(?:to|in)\s+([A-Za-z]{3})",
