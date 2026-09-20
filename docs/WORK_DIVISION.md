@@ -26,7 +26,8 @@ AI Desktop Assistant • Current responsibilities and what's left to build.
 * Testing with mock tools — done
 * p4 PR was messy and had a lot of code issues, fixed it and committed
 * updated readme with more info
-* a new commit had messed with nova.py functionality, weather tools and systemprompt. all fixed now
+* a new commit had messed with nova.py functionality, weather tools and systemprompt. all fixed now. in actuality it sort of worked but i messed up rushils classifier. apologies
+
 ## Anukriti — System \& File Tools
 
 update jo bhi kara ho
