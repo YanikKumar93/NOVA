@@ -1,16 +1,12 @@
-#current placeholder written by claude, since i wasnt too sure how to properly convert json to dict. my code kept having errors.
-#this will be updated properly later. Or not if it works perfectly, but i will study it.
-#okie maine pdhliya, but this works so im not gonna touch it and i dont very much feel like it
+
 """
 agent/tool_schema.py — turns a plain Python function into the JSON
 schema OpenAI-compatible APIs expect in `tools=[...]`.
-
-Unlike google-genai, Chat Completions does NOT read a function's type
+Chat Completions does NOT read a function's type
 hints/docstring for you automatically — we have to hand it an explicit
 schema ourselves. This helper does that inspection ONCE, here, so every
-tool file (tools/*.py) gets to stay exactly as it already is: plain
-functions, typed parameters, real docstrings. Nothing about the tool
-interface P2/P3/P4 were given changes because of this provider switch.
+tool file (tools/.) gets to stay exactly as it already is: plain
+functions, typed parameters, real docstrings.
 """
 
 import inspect

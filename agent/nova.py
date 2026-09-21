@@ -99,66 +99,71 @@ def askNova(
                     messages=chat,
                     tools=toolSchemas,
                 )
-                msg = response.choices[0].message
+                for _ in range(5):
+                    msg = response.choices[0].message
 
-                if not msg.tool_calls:
-                    text = msg.content or ""
-                    chat.append({"role": "assistant", "content": text})
-                    return text
+                    if not msg.tool_calls:
+                        text = msg.content or "The action completed, but NOVA did not provide a written response."
+                        chat.append({"role": "assistant", "content": text})
+                        return text
 
-                chat.append(
-                    {
-                        "role": "assistant",
-                        "content": msg.content,
-                        "tool_calls": [
-                            {
-                                "id": toolCall.id,
-                                "type": "function",
-                                "function": {
-                                    "name": toolCall.function.name,
-                                    "arguments": toolCall.function.arguments,
-                                },
-                            }
-                            for toolCall in msg.tool_calls
-                        ],
-                    }
-                )
+                    chat.append(
+                        {
+                            "role": "assistant",
+                            "content": msg.content,
+                            "tool_calls": [
+                                {
+                                    "id": toolCall.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": toolCall.function.name,
+                                        "arguments": toolCall.function.arguments,
+                                    },
+                                }
+                                for toolCall in msg.tool_calls
+                            ],
+                        }
+                    )
 
-                for toolCall in msg.tool_calls:
-                    functionName = toolCall.function.name
-                    agentLog["agentToolCalls"].append(functionName)
-                    function = toolMap.get(functionName)
-                    if function is None:
-                        result = f"Unknown tool '{functionName}'."
-                    else:
+                    for toolCall in msg.tool_calls:
+                        functionName = toolCall.function.name
+                        function = toolMap.get(functionName)
                         try:
                             arguments = json.loads(toolCall.function.arguments or "{}")
                             if not isinstance(arguments, dict):
                                 arguments = {}
-                            result = safe_call(
-                                function,
-                                **arguments,
-                                error_prefix=f"Tool '{functionName}' failed",
+                            agentLog["agentToolCalls"].append(
+                                {"tool": functionName, "arguments": arguments}
                             )
+                            if function is None:
+                                result = f"Unknown tool '{functionName}'."
+                            else:
+                                result = safe_call(
+                                    function,
+                                    **arguments,
+                                    error_prefix=f"Tool '{functionName}' failed",
+                                )
                         except (TypeError, ValueError):
+                            agentLog["agentToolCalls"].append(
+                                {"tool": functionName, "arguments": toolCall.function.arguments}
+                            )
                             result = f"Tool '{functionName}' got invalid JSON arguments."
 
-                    chat.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": toolCall.id,
-                            "content": str(result),
-                        }
+                        chat.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": toolCall.id,
+                                "content": str(result),
+                            }
+                        )
+
+                    response = client.chat.completions.create(
+                        model=currentModel,
+                        messages=chat,
+                        tools=toolSchemas,
                     )
 
-                followup = client.chat.completions.create(
-                    model=currentModel,
-                    messages=chat,
-                    tools=toolSchemas,
-                )
-                finalText = followup.choices[0].message.content or "Done."
-                chat.append({"role": "assistant", "content": finalText})
-                return finalText
+                return "tool call limit reach hogyi gng :( firse try karo ya model change krlo"
 
             except openai.AuthenticationError as error:
                 return friendly_provider_error(error, currentModel, getattr(client, "base_url", None))
