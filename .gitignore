@@ -231,5 +231,6 @@ temp_uploads/
 test.txt
 stufftofix.txt
 teaching_workflow.md
-docs\NOVA_TEACHING_SCRIPT.md
-docs\ROUTER_STREAMLIT_TEACHING_SCRIPT.md
+NOVA_TEACHING_SCRIPT.md
+ROUTER_STREAMLIT_TEACHING_SCRIPT.md
+apology.txt
