@@ -147,7 +147,7 @@ def askNova(
                             agentLog["agentToolCalls"].append(
                                 {"tool": functionName, "arguments": toolCall.function.arguments}
                             )
-                            result = f"Tool '{functionName}' got invalid JSON arguments."
+                            result = f"Tool '{functionName}' got invalid JSON arguments." #idk how this works 
 
                         chat.append(
                             {

@@ -33,7 +33,6 @@ NOVA has two interfaces:
 |   |-- nova.py              Client, conversation loop, tool calling, fallback
 |   |-- router.py            Shared classifier and direct-tool routing
 |   |-- fallback.py          Safe tool calls and provider error helpers
-|   |-- pipeline.py          RAG request preparation for Streamlit
 |   |-- systemprompt.py      NOVA behavior and personality prompt
 |   `-- __init__.py
 |-- tools/
@@ -106,7 +105,7 @@ NOVA_CHROMA_PATH=./chroma_db
 For real OpenAI, use `https://api.openai.com/v1`. For another provider, use that provider's documented OpenAI-compatible base URL and model name. Provider model names and availability change, so check the provider's current documentation.
 
 ## Running NOVA
-l
+
 Terminal mode:
 
 ```powershell
@@ -119,17 +118,17 @@ Streamlit mode:
 .\.venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-Both interfaces use `agent/router.py`. High-confidence requests such as weather, news, currency, file, and search requests call basic Python tools directly. Ambiguous requests go to the AI agent. Document questions are prepared through `agent/pipeline.py` and then sent to the AI with retrieved context.
+Both interfaces use `agent/router.py`. Simple, predictable requests can call Python tools directly. Ambiguous or conversational requests go to the AI agent, which can choose from the registered tools. Document questions use the uploaded-document tools in `tools/rag.py`.
 
 ## Request Flow
 
 ### Shared routing
 
 1. `agent/router.py` loads the trained TF-IDF vectorizer and classifier.
-2. The classifier returns a tool label or `LLM`/unknown intent.
+2. The classifier returns a tool label or an uncertain/LLM intent.
 3. Simple requests are parsed by `directArguments()` and call a tool directly.
 4. Direct tool results are added to the conversation history.
-5. Ambiguous requests call `askNova()`.
+5. Ambiguous requests call `askNova()` in `agent/nova.py`.
 
 `main.py` and `app.py` both call `routeRequest()`, so their behavior stays consistent.
 
@@ -137,10 +136,10 @@ Both interfaces use `agent/router.py`. High-confidence requests such as weather,
 
 1. `createNova()` creates a message list containing the system prompt and saved memory.
 2. `askNova()` sends the conversation and `toolSchemas` to the configured model.
-3. The model may return one or more tool calls.
+3. The model may request one or more registered tools.
 4. `toolMap` resolves each function name to a Python function.
 5. The function result is added to the conversation.
-6. A follow-up model request turns the result into a user-facing answer.
+6. The model receives the result and produces the user-facing answer.
 
 ## How To Add A Tool
 
@@ -170,7 +169,6 @@ def greet(name: str) -> str:
 - Model/provider behavior: edit environment variables first; edit `agent/nova.py` only for shared request behavior.
 - Tool registration: edit `toolBox` in `agent/nova.py`.
 - Direct routing: edit the classifier artifacts or `agent/router.py`.
-- RAG intent detection and context preparation: edit `agent/pipeline.py`.
 - Document extraction, chunking, or retrieval: edit `tools/rag.py`.
 - Memory storage format: edit `tools/memory.py`. Existing `nova_memory.json` may need migration if its format changes.
 - Streamlit layout and upload workflow: edit `app.py`.
