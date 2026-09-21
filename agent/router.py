@@ -2,6 +2,7 @@
 
 import os
 import re
+import time
 
 from agent.nova import askNova, toolMap
 from agent.routing_log import logRouteDecision
@@ -89,31 +90,52 @@ def directArguments(intent: str, text: str) -> tuple:
     return (text,)
 
 
-def routeRequest(message: str, chat: list) -> str:
+def routeRequest(
+    message: str,
+    chat: list,
+    medium: str = "app",
+) -> str:
+    startTime = time.perf_counter()
     intent, confidence = classifier.predict(message)
+    agentLog = {}
+
+    def logDecision(route: str, **details) -> None:
+        logRouteDecision(
+            message,
+            intent,
+            confidence,
+            route,
+            medium=medium,
+            latencyMs=round((time.perf_counter() - startTime) * 1000),
+            **agentLog,
+            **details,
+        )
 
     if intent in {"get_weather", "get_news"} and not hasApiKeyFor(intent):
-        logRouteDecision(message, intent, confidence, "agent", reason="api_key_missing")
         fallbackMessage = (
             f"{message}\n\n"
             f"The {intent} API key is unavailable. Do not call {intent}; "
             "use the searchWeb tool to answer this request instead."
         )
-        return askNova(chat, fallbackMessage)
+        response = askNova(chat, fallbackMessage, agentLog=agentLog)
+        logDecision("agent", reason="api_key_missing")
+        return response
 
     if intent in DIRECT_TOOLS and intent in toolMap:
         try:
             arguments = directArguments(intent, message)
+            agentLog["parsedArguments"] = list(arguments)
             result = str(toolMap[intent](*arguments))
-            logRouteDecision(message, intent, confidence, "system_tool", tool=intent)
+            logDecision("system_tool", tool=intent, reason="direct_tool_success")
             chat.append({"role": "user", "content": message})
             chat.append({"role": "assistant", "content": result})
             return result
-        except Exception:
-            logRouteDecision(message, intent, confidence, "agent", tool=intent, reason="system_tool_failed")
+        except Exception as error:
+            agentLog["toolError"] = f"{type(error).__name__}: {error}"
+            logDecision("agent", tool=intent, reason="system_tool_failed")
 
-    # fallback if regex fails 
-    logRouteDecision(message, intent, confidence, "agent", reason="routed_to_agent")
-
-    return askNova(chat, message)
+    # fallback if regex fails (catchall hogya ye)
+    response = askNova(chat, message, agentLog=agentLog)
+    logDecision("agent", reason="routed_to_agent")
+    return response
 

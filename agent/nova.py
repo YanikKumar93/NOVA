@@ -70,8 +70,16 @@ def createNova() -> list:
     return chat
 
 
-def askNova(chat: list, message: str, tries: int = 2) -> str:
+def askNova(
+    chat: list,
+    message: str,
+    tries: int = 2,
+    agentLog: dict | None = None,
+) -> str:
     """Send one message to NOVA with tool calling and model fallback."""
+    agentLog = agentLog if agentLog is not None else {}
+    agentLog.setdefault("agentToolCalls", [])
+    agentLog.setdefault("fallbackTriggered", False)
     client = getClient()
     chat.append({"role": "user", "content": message})
 
@@ -82,6 +90,8 @@ def askNova(chat: list, message: str, tries: int = 2) -> str:
 
     lastError = None
     for currentModel in modelsToTry:
+        if currentModel != MODEL:
+            agentLog["fallbackTriggered"] = True
         for attempt in range(max(1, tries)):
             try:
                 response = client.chat.completions.create(
@@ -116,6 +126,7 @@ def askNova(chat: list, message: str, tries: int = 2) -> str:
 
                 for toolCall in msg.tool_calls:
                     functionName = toolCall.function.name
+                    agentLog["agentToolCalls"].append(functionName)
                     function = toolMap.get(functionName)
                     if function is None:
                         result = f"Unknown tool '{functionName}'."

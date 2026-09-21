@@ -31,17 +31,29 @@ def logRouteDecision(
     classifierIntent: str | None,
     confidence: float,
     route: str,
+    medium: str = "app",
     tool: str | None = None,
+    parsedArguments: list | None = None,
+    toolError: str | None = None,
     reason: str | None = None,
+    agentToolCalls: list | None = None,
+    fallbackTriggered: bool = False,
+    latencyMs: int | None = None,
 ) -> None:
     record = {
         "timestamp": _gmt530_timestamp(),
-        "intent": classifierIntent,
+        "medium": medium,
         "message": message,
+        "classifier_intent": classifierIntent,
         "confidence": confidence,
         "route": route,
         "tool": tool,
+        "parsed_arguments": parsedArguments,
+        "tool_error": toolError,
         "reason": reason,
+        "agent_tool_calls": agentToolCalls or [],
+        "fallback_triggered": fallbackTriggered,
+        "latency_ms": latencyMs,
     }
     try:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)

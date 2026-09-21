@@ -8,3 +8,4 @@ pypdf
 joblib
 scikit-learn==1.9.1
 sentence-transformers
+torchvision

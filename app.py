@@ -30,7 +30,7 @@ def startChat() -> None:
 
 
 st.title("NOVA Desktop & Study Agent")
-st.caption("yaha kuch toh daalna hai uwu")
+st.caption("Enter your query!")
 
 with st.sidebar:
     st.subheader("Upload Study Material")
@@ -84,7 +84,11 @@ if user_message:
     with st.chat_message("assistant"):
         with st.spinner("Thinking..."):
             try:
-                response = routeRequest(user_message, st.session_state.chat)
+                response = routeRequest(
+                    user_message,
+                    st.session_state.chat,
+                    medium="app",
+                )
                 st.session_state.last_route = latestRouteDecision()
                 if not response or not str(response).strip():
                     response = "I couldn't generate a reply just now. Please try again."
