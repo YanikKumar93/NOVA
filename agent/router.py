@@ -28,7 +28,6 @@ DIRECT_TOOLS = {
     "searchWeb",
     "searchWikipedia",
     "searchYoutube",
-    "recall_memory",
     "forget_memory",
 }
 

@@ -7,6 +7,7 @@ NO TOOL EVER RAISES — always returns a plain string.
 
 import json
 import os
+import re
 import threading
 
 MEMORY_FILE = os.environ.get("NOVA_MEMORY_FILE", "nova_memory.json")
@@ -42,7 +43,7 @@ def save_memory(key: str, value: str) -> str:
     """Save a lasting fact about the user so it is remembered in future chats.
 
     Args:
-        key: Short label for the fact (e.g. name, city, favorite_language).
+        key: Short label for the fact (e.g. name, city, friend, favorite_language).
         value: The fact to remember.
     """
     if not key or not str(key).strip():
@@ -50,35 +51,79 @@ def save_memory(key: str, value: str) -> str:
     if value is None or not str(value).strip():
         return "Memory value cannot be empty."
 
-    key = str(key).strip().lower().replace(" ", "_")
-    value = str(value).strip()
+    clean_key = re.sub(r"[^a-zA-Z0-9_]+", "_", str(key).strip().lower()).strip("_")
+    val_str = str(value).strip()
 
     try:
         with _lock:
             data = _load()
-            data[key] = value
+            data[clean_key] = val_str
             _save(data)
-        return f"Remembered {key}: {value}"
+        return f"Remembered {clean_key}: {val_str}"
     except Exception as error:
         return f"Could not save memory: {error}"
 
 
-def recall_memory(key: str = "") -> str:
-    """Recall saved facts about the user. Pass a key for one fact, or leave empty for all.
+def _find_matching_key(search_key: str, data: dict) -> str | None:
+    """find the best matching key in saved memories with fuzzy/normalized lookup."""
+    if not search_key or not data:
+        return None
 
-    Args:
-        key: Optional fact label to look up. Leave empty to list everything saved.
+    raw_clean = search_key.lower().replace("'s", "").replace("?", "").strip()
+    norm = re.sub(r"\b(my|the|a|an|user|is|what|who|tell|me|about)\b", "", raw_clean).strip()
+    clean_search = re.sub(r"[^a-zA-Z0-9_]+", "_", norm).strip("_")
+
+    if search_key in data:
+        return search_key
+    if clean_search in data:
+        return clean_search
+
+    stemmed_search = re.sub(r"s\b", "", clean_search)
+    if stemmed_search in data:
+        return stemmed_search
+
+    tokens = set(t for t in clean_search.split("_") if t)
+
+    stemmed_tokens = set(re.sub(r"s\b", "", t) for t in tokens)
+    all_tokens = tokens | stemmed_tokens
+    
+    specific_tokens = all_tokens - {"name", "val", "value", "key", "info"}
+    search_set = specific_tokens if specific_tokens else all_tokens
+
+    best_key = None
+    best_score = 0
+
+    for k in data:
+        k_clean = k.lower()
+        k_stemmed = re.sub(r"s\b", "", k_clean)
+        k_tokens = set(t for t in k_clean.split("_") if t)
+        k_tokens.add(k_stemmed)
+
+        overlap = len(search_set & k_tokens)
+        if overlap > best_score:
+            best_score = overlap
+            best_key = k
+        elif any(st in k_clean or k_clean in st for st in search_set) and best_score == 0:
+            best_key = k
+
+    return best_key
+
+
+def recall_memory(key: str = "") -> str:
+    """recall saved facts about the user. pass a key for a fact, leave empty to just get everything
+
     """
     try:
         data = _load()
         if not data:
             return "I have no saved memories yet."
 
-        key = (key or "").strip().lower().replace(" ", "_")
-        if key:
-            if key in data:
-                return f"{key}: {data[key]}"
-            return f"No memory saved for '{key}'."
+        clean_key = (key or "").strip()
+        if clean_key:
+            matched_key = _find_matching_key(clean_key, data)
+            if matched_key:
+                return f"{matched_key}: {data[matched_key]}"
+            return f"No memory saved for '{clean_key}'."
 
         lines = [f"- {k}: {v}" for k, v in data.items()]
         return "Saved memories:\n" + "\n".join(lines)
@@ -95,15 +140,14 @@ def forget_memory(key: str) -> str:
     if not key or not str(key).strip():
         return "Memory key cannot be empty."
 
-    key = str(key).strip().lower().replace(" ", "_")
-
     try:
         with _lock:
             data = _load()
-            if key not in data:
+            matched_key = _find_matching_key(key, data) or key.strip().lower().replace(" ", "_")
+            if matched_key not in data:
                 return f"No memory saved for '{key}'."
-            del data[key]
+            del data[matched_key]
             _save(data)
-        return f"Forgot '{key}'."
+        return f"Forgot '{matched_key}'."
     except Exception as error:
         return f"Could not forget memory: {error}"
