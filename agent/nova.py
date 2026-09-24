@@ -60,6 +60,16 @@ def getClient() -> OpenAI:
     return OpenAI(api_key=apiKey, max_retries=0)
 
 
+def createNova() -> list:
+    """Return a fresh conversation with the system prompt and saved memories."""
+    getClient()
+    chat = [{"role": "system", "content": PROMPT}]
+    memoryText = formatMemoriesForPrompt()
+    if memoryText:
+        chat.append({"role": "system", "content": memoryText})
+    return chat
+
+
 
 
 def askNova(
