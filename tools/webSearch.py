@@ -14,7 +14,7 @@ DESIGN RULES FOR THIS FILE (please keep these if you edit it):
    model can read out loud, not a traceback.
 
 2. NO NEW DEPENDENCIES. Only `requests` (already in requirements.txt) and
-   the standard library. Nothing for anyone to pip-install on event day.
+    the standard library are required.
 
 3. NO PROVIDER-SPECIFIC SEARCH. Gemini's google_search and OpenAI's
    Responses-API web_search are locked to one vendor and would break the
@@ -44,17 +44,13 @@ import requests
 
 # ---------------------------------------------------------------- settings
 
-# Tool results are fed straight back into the model as another message, so
-# every character here costs tokens on the follow-up request. Keep it tight.
+# Tool results are included in the follow-up model request.
 MAX_SUMMARY_CHARS = 700
 
-# (connect timeout, read timeout). A hung socket with no timeout freezes the
-# whole terminal until the user kills the process — the worst event failure.
+# (connect timeout, read timeout).
 DEFAULT_TIMEOUT = 8.0
 
-# Wikipedia's API policy requires a descriptive User-Agent. A bare
-# "python-requests/2.x" from 200 machines on one campus network is exactly
-# what their rate limiter blocks first.
+# Wikipedia's API policy requires a descriptive User-Agent.
 CONTACT = os.environ.get("NOVA_CONTACT", "nova-student-project")
 USER_AGENT = f"NOVA-StudentAssistant/1.0 ({CONTACT})"
 
@@ -173,9 +169,6 @@ def _tavilySummary(query: str):
     payload = {
         "query": query,
         "max_results": 3,
-        # WITHOUT include_answer THE RESPONSE HAS NO "answer" FIELD AT ALL.
-        # The old code read data.get("answer") without setting this, so the
-        # summary was silently always empty. This one line is the fix.
         "include_answer": True,
         "search_depth": "basic",
     }
@@ -373,17 +366,11 @@ def searchWikipedia(query: str) -> str:
 
 
 # --------------------------------------------------------------- self-test
-#
-# Run this file directly to prove all three tools work WITHOUT starting the
-# agent, paying for a model call, or needing anyone else's module to be
-# finished:   python -m tools.webSearch
-#
 if __name__ == "__main__":
     from dotenv import load_dotenv
 
     load_dotenv()
 
-    # Don't spray browser tabs while testing.
     os.environ.setdefault("NOVA_OPEN_BROWSER", "0")
 
     print("TAVILY_API_KEY set:", bool(os.environ.get("TAVILY_API_KEY")))

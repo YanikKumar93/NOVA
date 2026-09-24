@@ -12,7 +12,6 @@ import socket
 import warnings
 from typing import List, Dict, Any, Optional
 
-# supress HF warning when loading. very cool
 os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
 os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
@@ -57,7 +56,6 @@ def _get_embedding_function():
             model_name="all-MiniLM-L6-v2"
         )
     except Exception:
-        # download nhi hua. allow download once
         if prev_offline is None:
             os.environ.pop("HF_HUB_OFFLINE", None)
         else:

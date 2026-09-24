@@ -1,5 +1,3 @@
-#router for main and app.py
-
 import os
 import re
 import time
@@ -10,14 +8,6 @@ from tools.classifier import IntentClassifier
 
 
 classifier = IntentClassifier()
-
-# these simple queries (DIRECT_TOOLS) are going to get executed directly. anything that
-# can be even thoda sa complex is very fragile with regex. its just better to send it directly to the llm.
-# the job of the classifier is to CLASSIFY. not parse multiparamter queries.
-
-# just send it to gemini.
-
-# peace
 
 DIRECT_TOOLS = {
     "get_weather",
@@ -133,7 +123,6 @@ def routeRequest(
             agentLog["toolError"] = f"{type(error).__name__}: {error}"
             logDecision("agent", tool=intent, reason="system_tool_failed")
 
-    # fallback if regex fails (catchall hogya ye)
     response = askNova(chat, message, agentLog=agentLog)
     logDecision("agent", reason="routed_to_agent")
     return response

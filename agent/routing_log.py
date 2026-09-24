@@ -64,7 +64,6 @@ def logRouteDecision(
 
 
 def latestRouteDecision() -> dict:
-    #bc ye chal kyu nhi rha streamlit me
     try:
         if not LOG_PATH.exists():
             return {}
