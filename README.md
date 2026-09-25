@@ -1,6 +1,6 @@
-# Study_Sync
+# Nova
 
-Study_Sync is a provider-independent desktop assistant. It combines an OpenAI-compatible chat model with ordinary Python tools. The model interprets natural-language requests and chooses tools; the tools perform the actual work.
+Nova is a provider-independent desktop assistant. It combines an OpenAI-compatible chat model with ordinary Python tools. The model interprets natural-language requests and chooses tools; the tools perform the actual work.
 
 NOVA has two interfaces:
 
